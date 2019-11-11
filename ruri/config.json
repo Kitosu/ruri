@@ -1,8 +1,11 @@
 {
-  "BeatmapPath": "/home/user/lets/.data/beatmaps/",
-  "osu_API_Key": "",
-  "ReplayPath": "/home/user/lets/.data/replays/replay_",
+  "New_Perms": True,
+  "BeatmapPath": "~/ruri/maps",
+  "osu_API_Key": "Nope",
+  "ReplayPath": "~/ruri/replays/replay_",
   "SQL_Password": "",
-  "SQL_Schema": "ripple",
-  "SQL_Username": "root"
+  "SQL_Schema": "",
+  "SQL_Username": "",
+
+
 }

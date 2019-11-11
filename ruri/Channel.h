@@ -182,12 +182,13 @@ struct _Channel{
 
 };
 
-std::array ChannelTable = { _Channel("#General","General Chat.", IRC_Public,IRC_Public,1),
+std::array ChannelTable = { _Channel("#general","General Chat.", IRC_Public,IRC_Public,1),
 							_Channel("#announce", "Public announcements.", IRC_Public, IRC_Admin,1),
 							_Channel("#supporter", "Supporter only chat.", IRC_Supporter, IRC_Supporter,1),
 							_Channel("#admin", "Command dumpster.", IRC_Admin, IRC_Admin,1),
 							_Channel("#devlog", "Log all the things.", IRC_Dev, IRC_Dev, 1),
-							_Channel("#lobby", "", IRC_Public, IRC_Public,0,1)
+							_Channel("#lobby", "You can find players from multi", IRC_Public, IRC_Public,0,1),
+							_Channel("#beatmaps", "Beatmaps?", IRC_Public, IRC_Public, 0, 1)
 						};
 VEC(byte) PublicChannelCache;
 
@@ -197,6 +198,7 @@ _Channel& chan_Supporter{ChannelTable[2]};
 _Channel& chan_Admin{ChannelTable[3]};
 _Channel& chan_DevLog{ChannelTable[4]};
 _Channel& chan_Lobby{ChannelTable[5]};
+_Channel& chan_bmps{ ChannelTable[5] };
 
 _inline _Channel* GetChannelByName(u32 Name){
 

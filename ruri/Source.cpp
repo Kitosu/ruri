@@ -1,8 +1,8 @@
 /*#define USERID_START 1000
-#define M_BOT_NAME "ruri"
+#define M_BOT_NAME "Lori Minase"
 #define BOT_LOCATION 0*/
-#define USERID_START 10
-#define M_BOT_NAME "Chloe"
+#define USERID_START 1000
+#define M_BOT_NAME "Lori Minase"
 #define BOT_LOCATION 111
 
 #define BANCHO_THREAD_COUNT 4
@@ -12,33 +12,26 @@ constexpr bool UsingRawMirror = 1;
 
 enum class Privileges : unsigned int {
 
-	Visible = 1 << 0,
-	Verified = 1 << 1,
-	Tournament_Manager = 1 << 2,
-
-	Donor = 1 << 6,
-	Premium = 1 << 7,
-	Alumni = 1 << 8,
-
-	Mod_General = 1 << 12,//Can silence people
-	Mod_Nominator = 1 << 13,//Can rank or love a map
-	Mod_MapManager = 1 << 14,//Can rank/unrank/love or change the locked status of a map
-
-	Admin_General = 1 << 21,//Can restrict people and read reports.
-	Admin_ManageUsers = 1 << 22,//Can manage users name/email and other personal data.
-	Admin_Alert = 1 << 23,
-	Admin_Wipe = 1 << 24,//Basically allows the user to evoke/invoke scores for accounts
-
-	SuperAdmin = 1 << 30,//Highest permission. Manages users and admins alike.
-
+	Visible = 1,
+	Verified = 2,
+	Tournament_Manager = 4,
+	Donor = 64,
+	Premium = 128,
+	Alumni = 256,
+	Mod_General = 4096,
+	Mod_Nominator = 8192,
+	Mod_MapManager = 16384,
+	Admin_General = 2097152,
+	Admin_ManageUsers = 4194304,
+	Admin_Alert = 8388608,
+	Admin_Wipe = 16777216,
+	SuperAdmin = 1073741824,
 	Banned = 0,
-
-	CanRankMaps = Mod_Nominator | Mod_MapManager,
-
-	Name_Yellow = Donor | Premium | Alumni,
-	Name_Orange = Mod_General | Mod_Nominator | Mod_MapManager,
-	Name_Periwinkle = Admin_General | Admin_ManageUsers | Admin_Alert | Admin_Wipe,
-	Name_Blue = SuperAdmin
+	CanRankMaps = 24576,
+	Name_Yellow = 448,
+	Name_Orange = 28672,
+	Name_Periwinkle = 31457280,
+	Name_Blue = 1073741824
 };
 
 enum UserType
@@ -150,7 +143,7 @@ enum RankStatus {
 
 #define TAG "\n   > Compiled with " KMAG COMPILER_NAME KRESET" on " __DATE__" " __TIME__".\n\n"
 
-#define MIRROR_IP "34.94.215.186"
+#define MIRROR_IP "http://pisstau.be"
 #define MIRROR_PORT 80
 
 #define MAX_USER_COUNT 256
@@ -159,8 +152,8 @@ enum RankStatus {
 
 #define CHO_VERSION 19
 #define _M(a) std::move(a)
-#define RURIPORT 420
-#define ARIAPORT 421
+#define RURIPORT 5001
+#define ARIAPORT 5002
 
 typedef unsigned long long u64;
 typedef unsigned int u32;
@@ -4259,7 +4252,6 @@ void HandleBanchoPacket(_Con s, const _HttpRes &&RES,const uint64_t choToken) {
 				constexpr auto constPacket =
 					Concate(
 						Number_Packet<int>(Packet::Server::protocolVersion, CHO_VERSION),
-						String_Packet(Packet::Server::notification, "Welcome to ruri.\nBuild: " __DATE__ " " __TIME__),
 						Number_Packet<int>(Packet::Server::channelInfoEnd, 0),
 						Number_Packet<int>(Packet::Server::supporterGMT, UserType::Supporter),
 						String_Packet(Packet::Server::channelKicked, "#osu"),

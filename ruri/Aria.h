@@ -1013,12 +1013,6 @@ Achievement GetAchievementsFromScore(const _Score &s, const float StarDiff) {
 
 void ScoreServerHandle(const _HttpRes &res, _Con s){
 
-	if (unlikely(res.GetHeaderValue("Host") != " osu.ppy.sh")){
-
-		s.SendData(ConstructResponse(200, Empty_Headers, STACK("error: no")));
-		s.Dis();
-		return;
-	}
 
 	const char* mName = "Aria";
 
@@ -1376,7 +1370,7 @@ void osu_getScores(const _HttpRes& http, _Con s){
 
 	const DWORD SetID = StringToNum(DWORD,Params.get<WSTI("i")>());
 
-	if (unlikely(BeatmapMD5.size() != 32 || http.GetHeaderValue("Host") != " osu.ppy.sh"))
+	if (unlikely(BeatmapMD5.size() != 32))
 		return SendAria404(s);
 
 	_UserRef u(GetUserFromName(urlDecode(std::string(Params.get<WSTI("us")>()))), 1);
@@ -1723,7 +1717,7 @@ void UploadScreenshot(const _HttpRes &res, _Con s){
 
 		const std::string Filename = rString<8>([&CharList]()->char {return CharList[BR::GetRand(0, sizeof(CharList) - 1)]; }).to_string() + ".png";
 
-		WriteAllBytes("/home/ss/" + Filename, &*it, end - it);
+		WriteAllBytes("/root/ruri/data/screenshots" + Filename, &*it, end - it);
 		s.SendData(ConstructResponse(200, {}, Filename));
 	}
 
@@ -1871,7 +1865,7 @@ void HandleAria(_Con s){
 					ThreadSpawned = 1;
 
 					std::scoped_lock L(MIRROR::MirrorAPILock);
-					MIRROR::MirrorAPIQue.emplace_back("api/set?b=" + std::to_string(SetID), s);
+					MIRROR::MirrorAPIQue.emplace_back("https://storage.ripple.moe/api/set?b=" + std::to_string(SetID), s);
 				}
 				break;
 
@@ -1895,7 +1889,7 @@ void HandleAria(_Con s){
 							if (a == ' ')a = '+';
 
 						std::scoped_lock L(MIRROR::MirrorAPILock);
-						MIRROR::MirrorAPIQue.emplace_back("api/search?" + u, s);
+						MIRROR::MirrorAPIQue.emplace_back("https://storage.ripple.moe/api/search?" + u, s);
 					}
 				}
 				break;
