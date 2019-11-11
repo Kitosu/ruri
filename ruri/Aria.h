@@ -1717,8 +1717,8 @@ void UploadScreenshot(const _HttpRes &res, _Con s){
 
 		const std::string Filename = rString<8>([&CharList]()->char {return CharList[BR::GetRand(0, sizeof(CharList) - 1)]; }).to_string() + ".png";
 
-		WriteAllBytes("~\/ruri\/data\/screenshots" + Filename, &*it, end - it);
-		s.SendData(ConstructResponse(200, {}, "i.minase.tk/" + Filename));
+		WriteAllBytes("~/ruri/data/screenshots" + Filename, &*it, end - it);
+		s.SendData(ConstructResponse(200, {}, Filename));
 	}
 
 	#undef SCREENSHOT_START

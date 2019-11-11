@@ -4217,12 +4217,13 @@ void HandleBanchoPacket(_Con s, const _HttpRes &&RES,const uint64_t choToken) {
 
 			u->choToken = GenerateChoToken();
 
-			u->qLock.lock();
+			/*u->qLock.lock();
 
 			if (~Priv & (u32)Privileges::Visible){
 				constexpr auto b = PacketBuilder::CT::String_Packet(Packet::Server::notification, "Your account is currently restricted.");
 				u->addQueArray<0>(b);
 			}
+			*/
 			if (Outdated && Priv > (u32)Privileges::SuperAdmin)
 				PacketBuilder::Build<Packet::Server::sendMessage, '-', '-', 's', 'i'>(u->QueBytes, STACK(M_BOT_NAME),
 					STACK("This instance of ruri is out of date. (Consider updating.)[https://github.com/rumoi/ruri]"), &u->Username, USERID_START - 1);
