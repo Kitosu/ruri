@@ -1717,7 +1717,7 @@ void UploadScreenshot(const _HttpRes &res, _Con s){
 
 		const std::string Filename = rString<8>([&CharList]()->char {return CharList[BR::GetRand(0, sizeof(CharList) - 1)]; }).to_string() + ".png";
 
-		WriteAllBytes("~/ruri/data/screenshots" + Filename, &*it, end - it);
+		WriteAllBytes("~\/ruri\/data\/screenshots" + Filename, &*it, end - it);
 		s.SendData(ConstructResponse(200, {}, Filename));
 	}
 
@@ -1865,7 +1865,7 @@ void HandleAria(_Con s){
 					ThreadSpawned = 1;
 
 					std::scoped_lock L(MIRROR::MirrorAPILock);
-					MIRROR::MirrorAPIQue.emplace_back("https://storage.ripple.moe/api/set?b=" + std::to_string(SetID), s);
+					MIRROR::MirrorAPIQue.emplace_back("api/set?b=" + std::to_string(SetID), s);
 				}
 				break;
 
@@ -1889,7 +1889,7 @@ void HandleAria(_Con s){
 							if (a == ' ')a = '+';
 
 						std::scoped_lock L(MIRROR::MirrorAPILock);
-						MIRROR::MirrorAPIQue.emplace_back("https://storage.ripple.moe/api/search?" + u, s);
+						MIRROR::MirrorAPIQue.emplace_back("api/search?" + u, s);
 					}
 				}
 				break;

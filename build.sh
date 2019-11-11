@@ -8,4 +8,11 @@ mv ruri/a.out ./
 mv ruri/config.json ./
 rm -rf ruri
 mv a.out ruri
+mkdir data
+cd data
+mkdir screenshots
+mkdir maps
+mkdir replays
+cd ..
+
 echo "Done now run ruri and setup config!"
