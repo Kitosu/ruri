@@ -1089,10 +1089,6 @@ void ScoreServerHandle(const _HttpRes &res, _Con s){
 			else EXTRACT(i);
 #undef EXTRACT
 
-		if (!score_iv.size() || !score_s.size() || !score_osuver.size()){//something very important is missing.
-				LogError("Failed score.","Aria");
-				return TryScoreAgain(s);
-		}
 		const bool OldClient = (FailTime == -1 || Quit == -1);
 
 		if (FailTime == -1)
