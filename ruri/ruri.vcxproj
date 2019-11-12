@@ -171,6 +171,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="aes.cpp" />
+    <ClCompile Include="Aria.cpp" />
     <ClCompile Include="BCrypt\bcrypt.c" />
     <ClCompile Include="BCrypt\crypt_blowfish.c" />
     <ClCompile Include="BCrypt\crypt_gensalt.c" />

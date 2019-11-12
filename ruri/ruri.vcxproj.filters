@@ -39,6 +39,9 @@
     <ClCompile Include="lz4.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Aria.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Connection.h">

@@ -1019,12 +1019,6 @@ Achievement GetAchievementsFromScore(const _Score& s, const float StarDiff) {
 
 void ScoreServerHandle(const _HttpRes& res, _Con s) {
 
-	if (unlikely(res.GetHeaderValue("Host") != " osu.ppy.sh")) {
-
-		s.SendData(ConstructResponse(200, Empty_Headers, STACK("error: no")));
-		s.Dis();
-		return;
-	}
 
 	const char* mName = "Aria";
 
@@ -1211,7 +1205,7 @@ else EXTRACT(bmk);
 		_BeatmapDataRef MapRef;
 
 		_BeatmapData* BD = GetBeatmapCache(0, 0, sData.BeatmapHash, "", &AriaSQL[s.ID], MapRef);
-
+		DownloadMapFromOsu(BD->BeatmapID);
 		if (!BD) {
 			printf(KRED"(%s) ScoreSubmit map failure\n" KRESET, sData.BeatmapHash.c_str());
 			return TryScoreAgain(s);
@@ -1240,7 +1234,7 @@ else EXTRACT(bmk);
 				ezpp_set_accuracy(ez, sData.count100, sData.count50);
 				ezpp_set_combo(ez, sData.MaxCombo);
 				ezpp_set_mode(ez, sData.GameMode);
-				DownloadMapFromOsu(BD->BeatmapID);
+				
 				if (!OppaiCheckMapDownload(ez, BD->BeatmapID)) {
 					printf("Could not download\n");
 					return TryScoreAgain(s);
