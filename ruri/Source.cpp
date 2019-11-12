@@ -12,26 +12,27 @@ constexpr bool UsingRawMirror = 1;
 
 enum class Privileges : unsigned int {
 
-	Visible = 1,
-	Verified = 2,
-	Tournament_Manager = 4,
-	Donor = 64,
-	Premium = 128,
-	Alumni = 256,
-	Mod_General = 4096,
-	Mod_Nominator = 8192,
-	Mod_MapManager = 16384,
-	Admin_General = 2097152,
-	Admin_ManageUsers = 4194304,
-	Admin_Alert = 8388608,
-	Admin_Wipe = 16777216,
-	SuperAdmin = 1073741824,
+	Visible = 3,
+	Verified = 3,
+	Tournament_Manager = 2097155,
+	Donor = 7,
+	Premium = 7,
+	Alumni = 0,
+	BAT = 267,
+	Mod_General = 67,
+	Mod_Nominator = 259,
+	Mod_MapManager = 259,
+	Admin_General = 1048323,
+	Admin_ManageUsers = 27,
+	Admin_Alert = 131075,
+	Admin_Wipe = 131,
+	SuperAdmin = 7340031,
 	Banned = 0,
-	CanRankMaps = 24576,
-	Name_Yellow = 448,
-	Name_Orange = 28672,
-	Name_Periwinkle = 31457280,
-	Name_Blue = 1073741824
+	CanRankMaps = 253,
+	Name_Yellow = 3,
+	Name_Orange = 3,
+	Name_Periwinkle = 3,
+	Name_Blue = 3
 };
 
 enum UserType
