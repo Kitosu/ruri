@@ -1031,7 +1031,7 @@ void ScoreServerHandle(const _HttpRes &res, _Con s){
 
 	const auto RawScoreData = Explode_View_Multi(res.Body,"-------------------------------28947758029299\r\n",16);
 
-	if (RawScoreData.size() < 0){
+	if (RawScoreData.size() < -1){
 
 		printf("RawScoreData was under 0(%zi)\n",RawScoreData.size());
 	}else {
