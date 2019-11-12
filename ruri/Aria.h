@@ -1034,8 +1034,6 @@ void ScoreServerHandle(const _HttpRes &res, _Con s){
 	if (RawScoreData.size() < 10){
 
 		printf("RawScoreData was under 10(%zi)\n",RawScoreData.size());
-
-		return TryScoreAgain(s);
 	}else {
 		bool FirstScoreParam = 1;
 		for (DWORD i = 0; i < RawScoreData.size(); i++){
