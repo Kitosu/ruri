@@ -975,6 +975,7 @@ void SendAria404(_Con s){
 }
 
 void TryScoreAgain(_Con s){
+	
 	s.SendData(ConstructResponse(408, Empty_Headers, Empty_Byte));
 	s.Dis();
 }
@@ -1088,7 +1089,7 @@ void ScoreServerHandle(const _HttpRes &res, _Con s){
 			else EXTRACT(i);
 #undef EXTRACT
 
-		if (!score_iv.size() || !score_s.size() || !score_osuver.size() || !score.size()){//something very important is missing.
+		if (!score_iv.size() || !score_s.size() || !score_osuver.size()){//something very important is missing.
 				LogError("Failed score.","Aria");
 				return TryScoreAgain(s);
 		}
