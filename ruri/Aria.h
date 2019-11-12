@@ -1233,7 +1233,6 @@ void ScoreServerHandle(const _HttpRes &res, _Con s){
 					ezpp_set_combo(ez, sData.MaxCombo);
 					ezpp_set_mode(ez, sData.GameMode);
 					DownloadMapFromOsu(BD->BeatmapID);
-					printf("downloading map...");
 					if (!OppaiCheckMapDownload(ez, BD->BeatmapID)){
 						printf("Could not download\n");
 						return TryScoreAgain(s);
