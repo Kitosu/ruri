@@ -2423,7 +2423,7 @@ bool DownloadMapFromOsu(const int ID) {
 	if (ID < 0 || ID > 6000000)
 		return 0;
 
-	const std::string bFile = GET_WEB_CHUNKED("old.ppy.sh", std::string("~/ruri/data/maps" + std::to_string(ID)));
+	const std::string bFile = GET_WEB_CHUNKED("osu.ppy.sh", std::string("/osu/" + std::to_string(ID)));
 
 	if (bFile.size() == 0 || bFile.find("[HitObjects]") == std::string::npos)return 0;
 
