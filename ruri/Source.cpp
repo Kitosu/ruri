@@ -143,7 +143,7 @@ enum RankStatus {
 
 #define TAG "\n   > Compiled with " KMAG COMPILER_NAME KRESET" on " __DATE__" " __TIME__".\n\n"
 
-#define MIRROR_IP "http://pisstau.be/"
+#define MIRROR_IP "https://storage.ripple.moe/"
 #define MIRROR_PORT 80
 
 #define MAX_USER_COUNT 256

@@ -1865,7 +1865,7 @@ void HandleAria(_Con s){
 					ThreadSpawned = 1;
 
 					std::scoped_lock L(MIRROR::MirrorAPILock);
-					MIRROR::MirrorAPIQue.emplace_back("https://storage.ripple.moe/api/search?q=" + std::to_string(SetID), s);
+					MIRROR::MirrorAPIQue.emplace_back("api/set?b=" + std::to_string(SetID), s);
 				}
 				break;
 
@@ -1889,7 +1889,7 @@ void HandleAria(_Con s){
 							if (a == ' ')a = '+';
 
 						std::scoped_lock L(MIRROR::MirrorAPILock);
-						MIRROR::MirrorAPIQue.emplace_back("https://storage.ripple.moe/api/search?" + u, s);
+						MIRROR::MirrorAPIQue.emplace_back("api/search?" + u, s);
 					}
 				}
 				break;
