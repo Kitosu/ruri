@@ -981,7 +981,6 @@ void SendAria404(_Con s) {
 }
 
 void TryScoreAgain(_Con s) {
-
 	s.SendData(ConstructResponse(408, Empty_Headers, Empty_Byte));
 	s.Dis();
 }
@@ -1020,13 +1019,19 @@ Achievement GetAchievementsFromScore(const _Score& s, const float StarDiff) {
 
 void ScoreServerHandle(const _HttpRes& res, _Con s) {
 
+	if (unlikely(res.GetHeaderValue("Host") != " osu.ppy.sh")) {
+
+		s.SendData(ConstructResponse(200, Empty_Headers, STACK("error: no")));
+		s.Dis();
+		return;
+	}
 
 	const char* mName = "Aria";
 
 	int FailTime = -1;
 	int Quit = -1;
-	prin
-		std::string score,
+
+	std::string score,
 		score_bmk,//Beatmap hash - used to detect changing the map as it is loading.
 		score_c1,
 		score_osuver,
@@ -1037,65 +1042,77 @@ void ScoreServerHandle(const _HttpRes& res, _Con s) {
 	_MD5 pass;
 
 	const auto RawScoreData = Explode_View_Multi(res.Body, "-------------------------------28947758029299\r\n", 16);
-	bool FirstScoreParam = 1;
-	printf("%zi", RawScoreData);
-	for (DWORD i = 0; i < RawScoreData.size(); i++) {
 
-		if (!MEM_CMP_START(RawScoreData[i], "Content-Disposition: form-data; name=\""))
-			continue;
+	if (RawScoreData.size() < 10) {
 
-		const char* End = &RawScoreData[i][38];
-		const char* Start = &RawScoreData[i][38];
-		const size_t DataSize = RawScoreData[i].size() - 39;
+		printf("RawScoreData was under 10(%zi)\n", RawScoreData.size());
 
-		if (DataSize == size_t(-1) || !DataSize)
-			continue;
+		return TryScoreAgain(s);
+	}
+	else {
+		bool FirstScoreParam = 1;
+		for (DWORD i = 0; i < RawScoreData.size(); i++) {
 
-		bool QuickExit = 0;
+			if (!MEM_CMP_START(RawScoreData[i], "Content-Disposition: form-data; name=\""))
+				continue;
 
-		while (1) {
-			End++;
-			if (*End == '"')break;
-			if (size_t(End - Start) >= DataSize) {
-				QuickExit = 1;
-				break;
-			}
-		}if (QuickExit)continue;
+			const char* End = &RawScoreData[i][38];
+			const char* Start = &RawScoreData[i][38];
+			const size_t DataSize = RawScoreData[i].size() - 39;
 
-		const std::string Name(Start, End);
+			if (DataSize == size_t(-1) || !DataSize)
+				continue;
 
-		Start = End + 5;
-		End = &RawScoreData[i][RawScoreData[i].size() - 2];
-		if (Start >= End)continue;
+			bool QuickExit = 0;
+
+			while (1) {
+				End++;
+				if (*End == '"')break;
+				if (size_t(End - Start) >= DataSize) {
+					QuickExit = 1;
+					break;
+				}
+			}if (QuickExit)continue;
+
+			const std::string Name(Start, End);
+
+			Start = End + 5;
+			End = &RawScoreData[i][RawScoreData[i].size() - 2];
+			if (Start >= End)continue;
 
 
 #define EXTRACT(s) if(Name == #s)score_##s = std::string(Start, End)
 
-		if (Name == "ft")
-			FailTime = MemToNum<int>(Start, DWORD(End - Start));
-		else if (Name == "x")
-			Quit = MemToNum<int>(Start, DWORD(End - Start));
-		else if (Name == "score") {
-			if (FirstScoreParam)
-				score = std::string(Start, End);
-			else {
-				Start += 58;
-				End -= _strlen_("-------------------------------28947758029299--");
-				if (Start >= End)continue;
-				ReplayFile = std::string(Start, End);
+			if (Name == "ft")
+				FailTime = MemToNum<int>(Start, DWORD(End - Start));
+			else if (Name == "x")
+				Quit = MemToNum<int>(Start, DWORD(End - Start));
+			else if (Name == "score") {
+				if (FirstScoreParam)
+					score = std::string(Start, End);
+				else {
+					Start += 58;
+					End -= _strlen_("-------------------------------28947758029299--");
+					if (Start >= End)continue;
+					ReplayFile = std::string(Start, End);
+				}
+				FirstScoreParam = 0;
 			}
-			FirstScoreParam = 0;
-		}
-		else EXTRACT(iv);
+			else EXTRACT(iv);
 else EXTRACT(bmk);
-		else EXTRACT(c1);
-		else if (Name == "pass")
-			pass = _MD5(std::string(Start, End));
-		else EXTRACT(osuver);
-		else EXTRACT(s);
-		else EXTRACT(i);
+			else EXTRACT(c1);
+			else if (Name == "pass")
+				pass = _MD5(std::string(Start, End));
+			else EXTRACT(osuver);
+			else EXTRACT(s);
+			else EXTRACT(i);
 #undef EXTRACT
+		}
 
+		if (!score_iv.size() || !score_s.size() || !score_osuver.size() || !score.size()) {//something very important is missing.
+			LogError("Failed score.", "Aria");
+			return TryScoreAgain(s);
+		}
 		const bool OldClient = (FailTime == -1 || Quit == -1);
 
 		if (FailTime == -1)
@@ -1230,7 +1247,7 @@ else EXTRACT(bmk);
 					ezpp_set_accuracy(ez, sData.count100, sData.count50);
 					ezpp_set_combo(ez, sData.MaxCombo);
 					ezpp_set_mode(ez, sData.GameMode);
-					DownloadMapFromOsu(BD->BeatmapID);
+
 					if (!OppaiCheckMapDownload(ez, BD->BeatmapID)) {
 						printf("Could not download\n");
 						return TryScoreAgain(s);
@@ -1334,763 +1351,762 @@ else EXTRACT(bmk);
 		return;
 	}
 
-	enum RankingType
-	{
-		Local,
-		Top,
-		SelectedMod,
-		Friends,
-		Country
-	};
+}
 
-	std::string urlDecode(const std::string_view SRC) {
+enum RankingType
+{
+	Local,
+	Top,
+	SelectedMod,
+	Friends,
+	Country
+};
 
-		const size_t Size = SRC.size();
-		std::string ret(Size, '\0');
-		size_t Off = 0;
-		for (size_t i = 0; i < Size; i++)
-			ret[Off++] =
-			SRC[i] == '%' && i + 2 < Size
-			? (CharHexToDecimal(SRC[i++ + 1]) << 4) + CharHexToDecimal(SRC[i++ + 1])
-			: SRC[i] == '+' ? ' ' : SRC[i];
-		ret.resize(Off);
+std::string urlDecode(const std::string_view SRC) {
 
-		return ret;
+	const size_t Size = SRC.size();
+	std::string ret(Size, '\0');
+	size_t Off = 0;
+	for (size_t i = 0; i < Size; i++)
+		ret[Off++] =
+		SRC[i] == '%' && i + 2 < Size
+		? (CharHexToDecimal(SRC[i++ + 1]) << 4) + CharHexToDecimal(SRC[i++ + 1])
+		: SRC[i] == '+' ? ' ' : SRC[i];
+	ret.resize(Off);
+
+	return ret;
+}
+
+void osu_getScores(const _HttpRes& http, _Con s) {
+
+	const auto Params = _GetParams(http.Host);
+
+	const std::string_view BeatmapMD5 = Params.get<WSTI("c")>();
+
+	const DWORD SetID = StringToNum(DWORD, Params.get<WSTI("i")>());
+
+	if (unlikely(BeatmapMD5.size() != 32 || http.GetHeaderValue("Host") != " osu.ppy.sh"))
+		return SendAria404(s);
+
+	_UserRef u(GetUserFromName(urlDecode(std::string(Params.get<WSTI("us")>()))), 1);
+
+	if (!u.User || !(_MD5(Params.get<WSTI("ha")>()) == u.User->Password))
+		return SendAria404(s);
+
+	const DWORD Mods = StringToNum(DWORD, Params.get<WSTI("mods")>());
+	DWORD Mode = StringToNum(DWORD, Params.get<WSTI("m")>());
+	const bool CustomClient = Params.get<WSTI("vv")>() != "4";
+	const DWORD LType = StringToNum(DWORD, Params.get<WSTI("v")>());
+
+	if constexpr (RELAX_MODE) {
+
+		if ((u->actionMods & Relax) != (Mods & Relax)) {//actionMods is outdated.
+			u->actionMods = Mods;
+
+			_User* tP = u.User;
+
+			const DWORD Off = tP->GetStatsOffset();
+
+			PacketBuilder::Build<Packet::Server::userStats, 'm',
+				'i', 'b', 'a', '5', 'i', 'b', 'i', 'l', 'i', 'i', 'l', 'i', 'w'>(tP->QueBytes, &tP->qLock,
+					tP->UserID, tP->actionID, tP->ActionText, tP->ActionMD5, tP->actionMods, tP->GameMode,
+					tP->BeatmapID, tP->Stats[Off].rScore, *(int*)&tP->Stats[Off].Acc,
+					tP->Stats[Off].pp > USHORT(-1) ? (tP->Stats[Off].pp) : tP->Stats[Off].PlayCount,
+					tP->Stats[Off].tScore, tP->Stats[Off].getRank(Off, tP->UserID), USHORT(tP->Stats[Off].pp)
+					);
+		}
+		Mode = (Mods & Relax) ? Mode + 4 : Mode;
 	}
 
-	void osu_getScores(const _HttpRes & http, _Con s) {
+	if (Mode > GM_MAX)
+		Mode = 0;
 
-		const auto Params = _GetParams(http.Host);
+	if (u.User->actionID != bStatus::sPlaying && BeatmapMD5.size() == 32)
+		memcpy(&u.User->ActionMD5[0], &BeatmapMD5[0], 32);
 
-		const std::string_view BeatmapMD5 = Params.get<WSTI("c")>();
+	_BeatmapDataRef MapRef;
 
-		const DWORD SetID = StringToNum(DWORD, Params.get<WSTI("i")>());
+	_BeatmapData* const BeatData = GetBeatmapCache(SetID, 0, BeatmapMD5,
+		std::string(Params.get<WSTI("f")>())
+		, &AriaSQL[s.ID], MapRef);
 
-		if (unlikely(BeatmapMD5.size() != 32))
-			return SendAria404(s);
+	if (!BeatData || !BeatData->BeatmapID) {
+		s.SendData(ConstructResponse(200, Empty_Headers, STACK("-1|0")));
+		return s.Dis();
+	}
 
-		_UserRef u(GetUserFromName(urlDecode(std::string(Params.get<WSTI("us")>()))), 1);
-
-		if (!u.User || !(_MD5(Params.get<WSTI("ha")>()) == u.User->Password))
-			return SendAria404(s);
-
-		const DWORD Mods = StringToNum(DWORD, Params.get<WSTI("mods")>());
-		DWORD Mode = StringToNum(DWORD, Params.get<WSTI("m")>());
-		const bool CustomClient = Params.get<WSTI("vv")>() != "4";
-		const DWORD LType = StringToNum(DWORD, Params.get<WSTI("v")>());
-
-		if constexpr (RELAX_MODE) {
-
-			if ((u->actionMods & Relax) != (Mods & Relax)) {//actionMods is outdated.
-				u->actionMods = Mods;
-
-				_User* tP = u.User;
-
-				const DWORD Off = tP->GetStatsOffset();
-
-				PacketBuilder::Build<Packet::Server::userStats, 'm',
-					'i', 'b', 'a', '5', 'i', 'b', 'i', 'l', 'i', 'i', 'l', 'i', 'w'>(tP->QueBytes, &tP->qLock,
-						tP->UserID, tP->actionID, tP->ActionText, tP->ActionMD5, tP->actionMods, tP->GameMode,
-						tP->BeatmapID, tP->Stats[Off].rScore, *(int*)&tP->Stats[Off].Acc,
-						tP->Stats[Off].pp > USHORT(-1) ? (tP->Stats[Off].pp) : tP->Stats[Off].PlayCount,
-						tP->Stats[Off].tScore, tP->Stats[Off].getRank(Off, tP->UserID), USHORT(tP->Stats[Off].pp)
-						);
-			}
-			Mode = (Mods & Relax) ? Mode + 4 : Mode;
-		}
-
-		if (Mode > GM_MAX)
-			Mode = 0;
-
-		if (u.User->actionID != bStatus::sPlaying && BeatmapMD5.size() == 32)
-			memcpy(&u.User->ActionMD5[0], &BeatmapMD5[0], 32);
-
-		_BeatmapDataRef MapRef;
-
-		_BeatmapData* const BeatData = GetBeatmapCache(SetID, 0, BeatmapMD5,
-			std::string(Params.get<WSTI("f")>())
-			, &AriaSQL[s.ID], MapRef);
-
-		if (!BeatData || !BeatData->BeatmapID) {
-			s.SendData(ConstructResponse(200, Empty_Headers, STACK("-1|0")));
-			return s.Dis();
-		}
+	const bool NeedUpdate = (BeatData && BeatData->Hash != BeatmapMD5);
 
 
-
-		const bool NeedUpdate = (BeatData && BeatData->Hash != BeatmapMD5);
-
-
-		if (NeedUpdate)
-			CheckMapUpdate(BeatData, &AriaSQL[s.ID]);//TODO: Should probably properly handle this instead of this hack.
+	if (NeedUpdate)
+		CheckMapUpdate(BeatData, &AriaSQL[s.ID]);//TODO: Should probably properly handle this instead of this hack.
 
 
-		_LeaderBoardCache* const LeaderBoard = BeatData->GetLeaderBoard(Mode, &AriaSQL[s.ID]);
+	_LeaderBoardCache* const LeaderBoard = BeatData->GetLeaderBoard(Mode, &AriaSQL[s.ID]);
 
-		const DWORD TotalScores = LeaderBoard ? LeaderBoard->ScoreCache.size() : 0;
+	const DWORD TotalScores = LeaderBoard ? LeaderBoard->ScoreCache.size() : 0;
 
-		const bool Loved = (BeatData->RankStatus == LOVED);
+	const bool Loved = (BeatData->RankStatus == LOVED);
 
-		std::string Response = NeedUpdate ? "1" : std::to_string(al_max(BeatData->RankStatus, 0));
-		Response += "|false"//server osz
-			"|" + std::to_string(BeatData->BeatmapID)//beatmap id
-			+ "|" + std::to_string(BeatData->SetID)//set id
-			+ "|" + std::to_string(TotalScores)//total records
-			+ "\n0"//offset
-			"\n" + BeatData->DisplayTitle//song name
-			+ "\n" + std::to_string(BeatData->Rating) + "\n";//rating
-	//Personal best
-		if (!NeedUpdate && BeatData->RankStatus >= RANKED && LeaderBoard) {
+	std::string Response = NeedUpdate ? "1" : std::to_string(al_max(BeatData->RankStatus, 0));
+	Response += "|false"//server osz
+		"|" + std::to_string(BeatData->BeatmapID)//beatmap id
+		+ "|" + std::to_string(BeatData->SetID)//set id
+		+ "|" + std::to_string(TotalScores)//total records
+		+ "\n0"//offset
+		"\n" + BeatData->DisplayTitle//song name
+		+ "\n" + std::to_string(BeatData->Rating) + "\n";//rating
+//Personal best
+	if (!NeedUpdate && BeatData->RankStatus >= RANKED && LeaderBoard) {
 
-			DWORD Rank = LeaderBoard->GetRankByUID(u.User->UserID);
+		DWORD Rank = LeaderBoard->GetRankByUID(u.User->UserID);
 
-			if (Rank) {
+		if (Rank) {
 
-				_ScoreCache s = LeaderBoard->GetScoreByRank(Rank);
+			_ScoreCache s = LeaderBoard->GetScoreByRank(Rank);
 
-				if (s.UserID != u.User->UserID)
-					s = LeaderBoard->GetScoreByUID(u.User->UserID);
-				if (s.UserID != 0) {
-					Response += std::to_string(s.ScoreID);//online id
-					Response += "|" + u.User->Username;//player name
-					Response += "|" + std::to_string((!Loved && Mode > 3) ? int(s.pp + 0.5f) : s.Score);//total score
-					Response += "|" + std::to_string(s.MaxCombo);//max combo
-					Response += "|" + std::to_string(s.count50);//count 50
-					Response += "|" + std::to_string(s.count100);//count 100
-					Response += "|" + std::to_string(s.count300);//count 300
-					Response += "|" + std::to_string(s.countMiss);//count miss
-					Response += "|" + std::to_string(s.countKatu);//count katu
-					Response += "|" + std::to_string(s.countGeki);//count geki
-					if (s.FullCombo)Response += "|1";//perfect
-					else Response += "|0";//perfect
-					Response += "|" + std::to_string(s.Mods);//mods
-					Response += "|" + std::to_string(u.User->UserID);//userid
-					Response += "|" + std::to_string(Rank);//online rank
-					Response += "|" + std::to_string(s.Time);//date 
-					Response += "|1";//online replay
-				}
-			}
-
-			if (LeaderBoard->ScoreCache.size()) {
-
-				std::shared_lock L(LeaderBoard->ScoreLock);
-
-				DWORD Rank = 0;
-
-				for (size_t i = 0; i < LeaderBoard->ScoreCache.size(); i++) {
-
-					if (Rank >= 250)
-						break;//Not doing this for performance reasons of the server. Simply the client is not built to handle it.
-
-					const _ScoreCache* lScore = &LeaderBoard->ScoreCache[i];
-
-					if ((LType == RankingType::SelectedMod && lScore->Mods != Mods)
-						|| (LType == RankingType::Friends && !u.User->isFriend(lScore->UserID)))
-						continue;
-
-					const int Score = (!Loved && (Mode > 3 || LType == RankingType::Country)) ? int(lScore->pp + 0.5f) : lScore->Score;
-
-					if (Score < 0)
-						continue;
-
-					Rank++;
-
-					if (u.User->isBlocked(lScore->UserID))
-						continue;
-
-					Response += "\n" + std::to_string(lScore->ScoreID)//online id
-						+ "|" + GetUsernameFromCache(lScore->UserID)//player name
-						+ "|" + std::to_string(Score)//total score
-						+ "|" + std::to_string(lScore->MaxCombo)//max combo
-						+ "|" + std::to_string(lScore->count50)//count 50
-						+ "|" + std::to_string(lScore->count100)//count 100
-						+ "|" + std::to_string(lScore->count300)//count 300
-						+ "|" + std::to_string(lScore->countMiss)//count miss
-						+ "|" + std::to_string(lScore->countKatu)//count katu
-						+ "|" + std::to_string(lScore->countGeki)//count geki
-						+ std::string((lScore->FullCombo) ? "|1" : "|0")
-						+ "|" + std::to_string(lScore->Mods)//mods
-						+ "|" + std::to_string(lScore->UserID)//userid
-						+ "|" + std::to_string(Rank)//online rank
-						+ "|" + std::to_string(lScore->Time)//date
-						+ "|1";//online replay
-				}
-
+			if (s.UserID != u.User->UserID)
+				s = LeaderBoard->GetScoreByUID(u.User->UserID);
+			if (s.UserID != 0) {
+				Response += std::to_string(s.ScoreID);//online id
+				Response += "|" + u.User->Username;//player name
+				Response += "|" + std::to_string((!Loved && Mode > 3) ? int(s.pp + 0.5f) : s.Score);//total score
+				Response += "|" + std::to_string(s.MaxCombo);//max combo
+				Response += "|" + std::to_string(s.count50);//count 50
+				Response += "|" + std::to_string(s.count100);//count 100
+				Response += "|" + std::to_string(s.count300);//count 300
+				Response += "|" + std::to_string(s.countMiss);//count miss
+				Response += "|" + std::to_string(s.countKatu);//count katu
+				Response += "|" + std::to_string(s.countGeki);//count geki
+				if (s.FullCombo)Response += "|1";//perfect
+				else Response += "|0";//perfect
+				Response += "|" + std::to_string(s.Mods);//mods
+				Response += "|" + std::to_string(u.User->UserID);//userid
+				Response += "|" + std::to_string(Rank);//online rank
+				Response += "|" + std::to_string(s.Time);//date 
+				Response += "|1";//online replay
 			}
 		}
 
-		s.SendData(ConstructResponse(200, Empty_Headers, Response));
-		s.Dis();
-	}
+		if (LeaderBoard->ScoreCache.size()) {
 
-	std::vector<std::tuple<const u32, u32, std::string>> UpdateCache;std::shared_mutex UpdateCache_Lock;
+			std::shared_lock L(LeaderBoard->ScoreLock);
 
-	void osu_checkUpdates(_GetParams && Params, _Con s) {
+			DWORD Rank = 0;
 
-		const std::string_view action = Params.get<WSTI("action")>();
+			for (size_t i = 0; i < LeaderBoard->ScoreCache.size(); i++) {
 
-		if (action != "check" && action != "path")
-			return SendAria404(s);
+				if (Rank >= 250)
+					break;//Not doing this for performance reasons of the server. Simply the client is not built to handle it.
 
-		bool AlreadyIn = 0;
+				const _ScoreCache* lScore = &LeaderBoard->ScoreCache[i];
 
-		const u32 reqStream = WSTI<u32>(Params.get<WSTI("stream")>());
+				if ((LType == RankingType::SelectedMod && lScore->Mods != Mods)
+					|| (LType == RankingType::Friends && !u.User->isFriend(lScore->UserID)))
+					continue;
 
-		s_mlock(UpdateCache_Lock)
-			for (auto& [Stream, LastTime, Cache] : UpdateCache)
-				if (reqStream == Stream) {
-					if (LastTime + 3600000 > clock_ms()) {
-						s.SendData(Cache);
-						return s.Dis();
-					}
-					AlreadyIn = 1;
-					break;
-				}
+				const int Score = (!Loved && (Mode > 3 || LType == RankingType::Country)) ? int(lScore->pp + 0.5f) : lScore->Score;
 
-		const std::string res = GET_WEB("old.ppy.sh", "web/check-updates.php?action=" + std::string(action)
-			+ "&stream=" + std::string(Params.get<WSTI("stream")>())
-			+ "&time=" + std::string(Params.get<WSTI("time")>()));
+				if (Score < 0)
+					continue;
 
-		s.SendData(res);
-		s.Dis();
+				Rank++;
 
-		std::scoped_lock L(UpdateCache_Lock);
+				if (u.User->isBlocked(lScore->UserID))
+					continue;
 
-		if (likely(AlreadyIn)) {
-			for (auto& [Stream, LastTime, Cache] : UpdateCache)
-				if (reqStream == Stream) {
-					LastTime = clock_ms();
-					Cache = res;//dc about copy :)
-					break;
-				}
+				Response += "\n" + std::to_string(lScore->ScoreID)//online id
+					+ "|" + GetUsernameFromCache(lScore->UserID)//player name
+					+ "|" + std::to_string(Score)//total score
+					+ "|" + std::to_string(lScore->MaxCombo)//max combo
+					+ "|" + std::to_string(lScore->count50)//count 50
+					+ "|" + std::to_string(lScore->count100)//count 100
+					+ "|" + std::to_string(lScore->count300)//count 300
+					+ "|" + std::to_string(lScore->countMiss)//count miss
+					+ "|" + std::to_string(lScore->countKatu)//count katu
+					+ "|" + std::to_string(lScore->countGeki)//count geki
+					+ std::string((lScore->FullCombo) ? "|1" : "|0")
+					+ "|" + std::to_string(lScore->Mods)//mods
+					+ "|" + std::to_string(lScore->UserID)//userid
+					+ "|" + std::to_string(Rank)//online rank
+					+ "|" + std::to_string(lScore->Time)//date
+					+ "|1";//online replay
+			}
 
 		}
-		else UpdateCache.emplace_back(reqStream, clock_ms(), res);//dc about copy :)
 	}
 
-	const std::string directToApiStatus(const std::string & directStatus) {//thank you ripple
-		if (!directStatus.size())
-			return "";
-		if (directStatus == "0" || directStatus == "7")
-			return "1";
-		if (directStatus == "8")
-			return "4";
-		if (directStatus == "3")
-			return "3";
-		if (directStatus == "2")
-			return "0";
-		if (directStatus == "5")
-			return "-2";
-		if (directStatus == "4")
-			return "";
+	s.SendData(ConstructResponse(200, Empty_Headers, Response));
+	s.Dis();
+}
 
+std::vector<std::tuple<const u32, u32, std::string>> UpdateCache;std::shared_mutex UpdateCache_Lock;
+
+void osu_checkUpdates(_GetParams&& Params, _Con s) {
+
+	const std::string_view action = Params.get<WSTI("action")>();
+
+	if (action != "check" && action != "path")
+		return SendAria404(s);
+
+	bool AlreadyIn = 0;
+
+	const u32 reqStream = WSTI<u32>(Params.get<WSTI("stream")>());
+
+	s_mlock(UpdateCache_Lock)
+		for (auto& [Stream, LastTime, Cache] : UpdateCache)
+			if (reqStream == Stream) {
+				if (LastTime + 3600000 > clock_ms()) {
+					s.SendData(Cache);
+					return s.Dis();
+				}
+				AlreadyIn = 1;
+				break;
+			}
+
+	const std::string res = GET_WEB("old.ppy.sh", "web/check-updates.php?action=" + std::string(action)
+		+ "&stream=" + std::string(Params.get<WSTI("stream")>())
+		+ "&time=" + std::string(Params.get<WSTI("time")>()));
+
+	s.SendData(res);
+	s.Dis();
+
+	std::scoped_lock L(UpdateCache_Lock);
+
+	if (likely(AlreadyIn)) {
+		for (auto& [Stream, LastTime, Cache] : UpdateCache)
+			if (reqStream == Stream) {
+				LastTime = clock_ms();
+				Cache = res;//dc about copy :)
+				break;
+			}
+
+	}
+	else UpdateCache.emplace_back(reqStream, clock_ms(), res);//dc about copy :)
+}
+
+const std::string directToApiStatus(const std::string& directStatus) {//thank you ripple
+	if (!directStatus.size())
+		return "";
+	if (directStatus == "0" || directStatus == "7")
 		return "1";
+	if (directStatus == "8")
+		return "4";
+	if (directStatus == "3")
+		return "3";
+	if (directStatus == "2")
+		return "0";
+	if (directStatus == "5")
+		return "-2";
+	if (directStatus == "4")
+		return "";
+
+	return "1";
+}
+
+void GetReplay(const std::string_view URL, _Con s) {
+
+	std::string ID = std::string(_GetParams{ URL }.get<WSTI("c")>());
+
+	for (auto& c : ID)
+		if (c == '.')
+			c = '/';
+
+	s.SendData(ConstructResponse(200, Empty_Headers, LOAD_FILE_RAW(ReplayPath + ID + ".osr")));
+
+	return s.Dis();
+}
+
+void Thread_DownloadOSZ(const DWORD MapID, _Con s) {
+
+	s.SendData(GET_WEB(MIRROR_IP, "d/" + std::to_string(MapID)));
+
+	return s.Dis();
+}
+
+static inline uint64_t UnixToDateTime(const int Unix) {
+	return 0x89F7FF5F7B58000 + (int64_t(Unix) * 10000000);
+}
+
+void Thread_WebReplay(const uint64_t ID, _Con s) {
+
+	auto res = SQL_BanchoThread[clock() & 3].ExecuteQuery("SELECT userid,play_mode,beatmap_md5,300_count,100_count,50_count,gekis_count,katus_count,misses_count,score,max_combo,full_combo,mods,time"
+		" FROM " + Score_Table_Name[!(ID > 500000000u)] + " WHERE id=" + std::to_string(ID) + " LIMIT 1");
+
+	if (const std::vector<byte>& Data = LOAD_FILE_RAW(ReplayPath + std::to_string(ID) + ".osr"); Data.size() && res&& res->next())
+	{
+		std::vector<byte> Total;
+
+		Total.reserve(256 + Data.size());
+
+		Total.push_back(res->getInt(2));//PlayMode
+		AddStream(Total, 20190101);//osu version
+		AddString_SQL(Total, res->getString(3));//beatmap md5
+		AddString(Total, GetUsernameFromCache(res->getInt(1)));//Username
+		AddString_SQL(Total, res->getString(3));//checksum
+		AddStream(Total, u16(res->getInt(4)));//count300
+		AddStream(Total, u16(res->getInt(5)));//count100
+		AddStream(Total, u16(res->getInt(6)));//count50
+		AddStream(Total, u16(res->getInt(7)));//countGeki
+		AddStream(Total, u16(res->getInt(8)));//countKatu
+		AddStream(Total, u16(res->getInt(9)));//countMiss
+		AddStream(Total, res->getUInt(10));//totalScore
+		AddStream(Total, u16(res->getInt(11)));//MaxCombo
+		Total.push_back(res->getBoolean(12));//Perfect
+		AddStream(Total, res->getUInt(13));//Mods
+		AddString(Total, "");//life
+		AddStream(Total, UnixToDateTime(res->getUInt(14)));//Date
+		AddStream(Total, u32(Data.size()));
+		AddVector(Total, Data);
+		AddStream(Total, ID);
+
+		s.SendData(ConstructResponse(200, {
+			{"Content-type","application/octet-stream"},
+			{"Content-length",std::to_string(Total.size())},
+			{"Content-Description","File Transfer"},
+			{"Content-Disposition","attachment; filename=\"" + std::to_string(ID) + ".osr\""}
+			}, Total));
 	}
 
-	void GetReplay(const std::string_view URL, _Con s) {
+	DeleteAndNull(res);
 
-		std::string ID = std::string(_GetParams{ URL }.get<WSTI("c")>());
+	return s.Dis();
+}
 
-		for (auto& c : ID)
-			if (c == '.')
-				c = '/';
+void Thread_UpdateOSU(const std::string URL, _Con s) {
 
-		s.SendData(ConstructResponse(200, Empty_Headers, LOAD_FILE_RAW(ReplayPath + ID + ".osr")));
+	s.SendData(GET_WEB("old.ppy.sh", URL));//Their osu clients will unchunk the data for us :)
 
-		return s.Dis();
-	}
-
-	void Thread_DownloadOSZ(const DWORD MapID, _Con s) {
-
-		s.SendData(GET_WEB(MIRROR_IP, "d/" + std::to_string(MapID)));
-
-		return s.Dis();
-	}
-
-	static inline uint64_t UnixToDateTime(const int Unix) {
-		return 0x89F7FF5F7B58000 + (int64_t(Unix) * 10000000);
-	}
-
-	void Thread_WebReplay(const uint64_t ID, _Con s) {
-
-		auto res = SQL_BanchoThread[clock() & 3].ExecuteQuery("SELECT userid,play_mode,beatmap_md5,300_count,100_count,50_count,gekis_count,katus_count,misses_count,score,max_combo,full_combo,mods,time"
-			" FROM " + Score_Table_Name[!(ID > 500000000u)] + " WHERE id=" + std::to_string(ID) + " LIMIT 1");
-
-		if (const std::vector<byte>& Data = LOAD_FILE_RAW(ReplayPath + std::to_string(ID) + ".osr"); Data.size() && res&& res->next())
-		{
-			std::vector<byte> Total;
-
-			Total.reserve(256 + Data.size());
-
-			Total.push_back(res->getInt(2));//PlayMode
-			AddStream(Total, 20190101);//osu version
-			AddString_SQL(Total, res->getString(3));//beatmap md5
-			AddString(Total, GetUsernameFromCache(res->getInt(1)));//Username
-			AddString_SQL(Total, res->getString(3));//checksum
-			AddStream(Total, u16(res->getInt(4)));//count300
-			AddStream(Total, u16(res->getInt(5)));//count100
-			AddStream(Total, u16(res->getInt(6)));//count50
-			AddStream(Total, u16(res->getInt(7)));//countGeki
-			AddStream(Total, u16(res->getInt(8)));//countKatu
-			AddStream(Total, u16(res->getInt(9)));//countMiss
-			AddStream(Total, res->getUInt(10));//totalScore
-			AddStream(Total, u16(res->getInt(11)));//MaxCombo
-			Total.push_back(res->getBoolean(12));//Perfect
-			AddStream(Total, res->getUInt(13));//Mods
-			AddString(Total, "");//life
-			AddStream(Total, UnixToDateTime(res->getUInt(14)));//Date
-			AddStream(Total, u32(Data.size()));
-			AddVector(Total, Data);
-			AddStream(Total, ID);
-
-			s.SendData(ConstructResponse(200, {
-				{"Content-type","application/octet-stream"},
-				{"Content-length",std::to_string(Total.size())},
-				{"Content-Description","File Transfer"},
-				{"Content-Disposition","attachment; filename=\"" + std::to_string(ID) + ".osr\""}
-				}, Total));
-		}
-
-		DeleteAndNull(res);
-
-		return s.Dis();
-	}
-
-	void Thread_UpdateOSU(const std::string URL, _Con s) {
-
-		s.SendData(GET_WEB("old.ppy.sh", URL));//Their osu clients will unchunk the data for us :)
-
-		return s.Dis();
-	}
+	return s.Dis();
+}
 
 
-	template<size_t Size>
-	struct rString {
+template<size_t Size>
+struct rString {
 
-		char Data[Size];
+	char Data[Size];
 
 #pragma warning(suppress: 26495)
-		template<typename Alloc> rString(Alloc A) noexcept {
-			for (size_t i = 0; i < Size; i++)
-				Data[i] = A();
-		}
+	template<typename Alloc> rString(Alloc A) noexcept {
+		for (size_t i = 0; i < Size; i++)
+			Data[i] = A();
+	}
 
-		constexpr size_t size() const noexcept { return Size; }
+	constexpr size_t size() const noexcept { return Size; }
 
-		void operator+(std::string& String)const noexcept {
-			if constexpr (Size == 0)return;
-			String.resize(String.size() + Size);
-			memcpy((String.data() + String.size()) - Size, Data, Size);
-		}
+	void operator+(std::string& String)const noexcept {
+		if constexpr (Size == 0)return;
+		String.resize(String.size() + Size);
+		memcpy((String.data() + String.size()) - Size, Data, Size);
+	}
 
-		std::string to_string()const noexcept { return std::string((const char*)Data, Size); }
+	std::string to_string()const noexcept { return std::string((const char*)Data, Size); }
 
-	};
+};
 
-	void UploadScreenshot(const _HttpRes & res, _Con s) {
+void UploadScreenshot(const _HttpRes& res, _Con s) {
 
-		if (res.Body.size() < 1000 || res.Body.size() > 2000000)
-			return;
+	if (res.Body.size() < 1000 || res.Body.size() > 2000000)
+		return;
 
 #define SCREENSHOT_START "Content-Disposition: form-data; name=\"ss\"; filename=\"ss\"\r\nContent-Type: application/octet-stream\r\n\r\n"
 #define SCREENSHOT_END "\r\n-------------------------------28947758029299--"
 
-		const static std::string Start = SCREENSHOT_START;
+	const static std::string Start = SCREENSHOT_START;
 
-		auto it = std::search(
-			res.Body.begin(), res.Body.end(),
-			begin(Start), end(Start));
+	auto it = std::search(
+		res.Body.begin(), res.Body.end(),
+		begin(Start), end(Start));
 
-		if (it == end(res.Body))
-			return s.Dis();
+	if (it == end(res.Body))
+		return s.Dis();
 
-		it += CONSTX<size_t, _strlen_(SCREENSHOT_START)>::value;
+	it += CONSTX<size_t, _strlen_(SCREENSHOT_START)>::value;
 
-		const auto end = res.Body.end() - CONSTX<size_t, _strlen_(SCREENSHOT_END)>::value;
+	const auto end = res.Body.end() - CONSTX<size_t, _strlen_(SCREENSHOT_END)>::value;
 
-		if (end > it) {
+	if (end > it) {
 
-			constexpr char CharList[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-										  'A', 'B', 'C', 'D', 'E', 'F', '_', 'a', 'b', 'c',
-										  'd', 'e', 'f', '-', 'r', 'u', 'm', 'o', 'i', 'l', 'g', 'n' };
+		constexpr char CharList[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+									  'A', 'B', 'C', 'D', 'E', 'F', '_', 'a', 'b', 'c',
+									  'd', 'e', 'f', '-', 'r', 'u', 'm', 'o', 'i', 'l', 'g', 'n' };
 
-			const std::string Filename = rString<8>([&CharList]()->char {return CharList[BR::GetRand(0, sizeof(CharList) - 1)]; }).to_string() + ".png";
+		const std::string Filename = rString<8>([&CharList]()->char {return CharList[BR::GetRand(0, sizeof(CharList) - 1)]; }).to_string() + ".png";
 
-			WriteAllBytes("~/ruri/data/screenshots" + Filename, &*it, end - it);
-			s.SendData(ConstructResponse(200, {}, Filename));
-		}
+		WriteAllBytes("/home/ss/" + Filename, &*it, end - it);
+		s.SendData(ConstructResponse(200, {}, Filename));
+	}
 
 #undef SCREENSHOT_START
 #undef SCREENSHOT_END
 
-		return s.Dis();
-	}
+	return s.Dis();
+}
 
-	namespace MIRROR {
+namespace MIRROR {
 
-		std::mutex MirrorAPILock;
-		std::vector<std::pair<const std::string, _Con>> MirrorAPIQue;
+	std::mutex MirrorAPILock;
+	std::vector<std::pair<const std::string, _Con>> MirrorAPIQue;
 
-		void HandleMirrorAPI() {
+	void HandleMirrorAPI() {
 
-			std::vector<std::pair<const std::string, _Con>> QueCopy;
+		std::vector<std::pair<const std::string, _Con>> QueCopy;
 
-			while (1) {
+		while (1) {
 
-				if (MirrorAPIQue.size()) {
+			if (MirrorAPIQue.size()) {
 
-					QueCopy.clear();
+				QueCopy.clear();
 
-					mlock(MirrorAPILock) {
+				mlock(MirrorAPILock) {
 
-						for (DWORD i = 0; i < MirrorAPIQue.size(); i++)
-							QueCopy.emplace_back(_M(MirrorAPIQue[i].first), MirrorAPIQue[i].second);
+					for (DWORD i = 0; i < MirrorAPIQue.size(); i++)
+						QueCopy.emplace_back(_M(MirrorAPIQue[i].first), MirrorAPIQue[i].second);
 
-						MirrorAPIQue.clear();
-					}
-
-					for (auto& [req, Con] : QueCopy) {
-						if constexpr (UsingRawMirror) {
-							Con.SendData(GET_WEB(MIRROR_IP, req));
-							Con.Dis();
-						}
-					}
+					MirrorAPIQue.clear();
 				}
 
-				Sleep(10);
+				for (auto& [req, Con] : QueCopy) {
+					if constexpr (UsingRawMirror) {
+						Con.SendData(GET_WEB(MIRROR_IP, req));
+						Con.Dis();
+					}
+				}
 			}
+
+			Sleep(10);
 		}
 	}
+}
 
-	void LastFM(_GetParams && Params, _Con s) {
+void LastFM(_GetParams&& Params, _Con s) {
 
-		enum {
-			RelifeRunning = 1 << 0,
-			Console = 1 << 1,
-			//1<<2 can false flag. Do not use.
-			InvalidName = 1 << 3,
-			InvalidFile = 1 << 4,
-			RelifeLoaded = 1 << 5
-		};
+	enum {
+		RelifeRunning = 1 << 0,
+		Console = 1 << 1,
+		//1<<2 can false flag. Do not use.
+		InvalidName = 1 << 3,
+		InvalidFile = 1 << 4,
+		RelifeLoaded = 1 << 5
+	};
 
-		const int Flags = [&] {
+	const int Flags = [&] {
 
-			auto B = Params.get<WSTI("b")>();
+		auto B = Params.get<WSTI("b")>();
 
-			return (B.size() && B[0] == 'a') ? StringToNum(int, B) : 0;
-		}();
+		return (B.size() && B[0] == 'a') ? StringToNum(int, B) : 0;
+	}();
 
-		if (Flags & (RelifeLoaded | Console | InvalidName | InvalidFile | RelifeLoaded)) {
+	if (Flags & (RelifeLoaded | Console | InvalidName | InvalidFile | RelifeLoaded)) {
 
-			_UserRef u(GetUserFromNameSafe(USERNAMESAFE(std::string(Params.get<WSTI("us")>()))), 1);
+		_UserRef u(GetUserFromNameSafe(USERNAMESAFE(std::string(Params.get<WSTI("us")>()))), 1);
 
-			if (!!u && u->Password == _MD5(Params.get<WSTI("ha")>()) && u->privileges& (u32)Privileges::Visible) {
+		if (!!u && u->Password == _MD5(Params.get<WSTI("ha")>()) && u->privileges& (u32)Privileges::Visible) {
 
-				u->addQueArray(PacketBuilder::Fixed_Build<Packet::Server::RTX, '-'>(Flags == RelifeLoaded ? STACK("Disable osu-relife or get banned") : STACK("What did you think would happen?")));
+			u->addQueArray(PacketBuilder::Fixed_Build<Packet::Server::RTX, '-'>(Flags == RelifeLoaded ? STACK("Disable osu-relife or get banned") : STACK("What did you think would happen?")));
 
-				const u32 ID = u->UserID;
+			const u32 ID = u->UserID;
 
-				std::string FlagString;
+			std::string FlagString;
 
 #define FlagPrint(s) if(Flags&s)FlagString += "|"#s
-				FlagPrint(RelifeRunning);
-				FlagPrint(Console);
-				FlagPrint(InvalidName);
-				FlagPrint(InvalidFile);
-				FlagPrint(RelifeLoaded);
+			FlagPrint(RelifeRunning);
+			FlagPrint(Console);
+			FlagPrint(InvalidName);
+			FlagPrint(InvalidFile);
+			FlagPrint(RelifeLoaded);
 #undef FlagPrint
 
-				printf(KYEL "%i> Flags: %s\n" KRESET, ID, FlagString.c_str());
+			printf(KYEL "%i> Flags: %s\n" KRESET, ID, FlagString.c_str());
 
-				if (!(u->privileges & (u32)Privileges::SuperAdmin) && Flags != RelifeLoaded) {
+			if (!(u->privileges & (u32)Privileges::SuperAdmin) && Flags != RelifeLoaded) {
 
-					UpdateQue.emplace_back(ID, (u32)0, _UserUpdate::Restrict, (size_t)new std::string("Restricted for flags: " + FlagString));
-				}
+				UpdateQue.emplace_back(ID, (u32)0, _UserUpdate::Restrict, (size_t)new std::string("Restricted for flags: " + FlagString));
 			}
 		}
-
-		s.SendData(STACK("HTTP/1.0 200 OK" MNL
-			"Content-Length: 2" MNL
-			"Connection: close" DMNL
-			"-3"));
-
-		return s.Dis();
 	}
+
+	s.SendData(STACK("HTTP/1.0 200 OK" MNL
+		"Content-Length: 2" MNL
+		"Connection: close" DMNL
+		"-3"));
+
+	return s.Dis();
+}
 
 #define IS_NUM(s)!(s < '0' || s > '9')
 
 #include "Web.h"
 
-	void HandleAria(_Con s) {
+void HandleAria(_Con s) {
 
-		_HttpRes res;
+	_HttpRes res;
 
-		if (!s.RecvData(res)) {
-			s.Dis();
-			return LogError("Connection Lost", ModuleName);
-		}
+	if (!s.RecvData(res)) {
+		s.Dis();
+		return LogError("Connection Lost", ModuleName);
+	}
 
-		bool ThreadSpawned = 0;
+	bool ThreadSpawned = 0;
 
-		if (res.Host.size()) {
+	if (res.Host.size()) {
 
-			size_t Size = res.Host.size();
+		size_t Size = res.Host.size();
 
-			if (size_t Pos = res.Host.find(".php"); Pos != std::string::npos)
-				Size = Pos + 4;
-			else for (; Size-- > 0;)// For direct access pages ignore the top level path.
-				if (res.Host[Size] == '/' && ++Size)
+		if (size_t Pos = res.Host.find(".php"); Pos != std::string::npos)
+			Size = Pos + 4;
+		else for (; Size-- > 0;)// For direct access pages ignore the top level path.
+			if (res.Host[Size] == '/' && ++Size)
+				break;
+
+		if (unlikely(MEM_CMP_START(res.Host, "/home/")))
+			web::handle_web(res, s);
+		else switch (WSTI<u64>(std::string_view(res.Host.data(), Size))) {
+
+			case WSTI<u64>("/web/osu-submit-modular-selector.php") :
+				ScoreServerHandle(res, s);
+				break;
+
+				case WSTI<u64>("/web/check-updates.php") :
+					osu_checkUpdates(_GetParams(res.Host), s);
 					break;
 
-			if (unlikely(MEM_CMP_START(res.Host, "/home/")))
-				web::handle_web(res, s);
-			else switch (WSTI<u64>(std::string_view(res.Host.data(), Size))) {
-
-				case WSTI<u64>("/web/osu-submit-modular-selector.php") :
-					ScoreServerHandle(res, s);
-					break;
-
-					case WSTI<u64>("/web/check-updates.php") :
-						osu_checkUpdates(_GetParams(res.Host), s);
+					case WSTI<u64>("/web/osu-osz2-getscores.php") :
+						osu_getScores(res, s);
 						break;
 
-						case WSTI<u64>("/web/osu-osz2-getscores.php") :
-							osu_getScores(res, s);
+						case WSTI<u64>("/web/osu-search-set.php") :
+							if (const DWORD SetID = StringToNum(DWORD, std::string_view(res.Host.data() + Size, res.Host.size() - Size)); SetID) {
+
+								ThreadSpawned = 1;
+
+								std::scoped_lock L(MIRROR::MirrorAPILock);
+								MIRROR::MirrorAPIQue.emplace_back("api/set?b=" + std::to_string(SetID), s);
+							}
+						break;
+
+						case WSTI<u64>("/web/osu-search.php") : {
+
+							size_t Start = 0;
+
+							for (size_t i = 22; i < res.Host.size() - 2; i++) {
+								if (*(USHORT*)&res.Host[i] == 0x7226) {//&r
+									Start = i + 1;
+									break;
+								}
+							}
+
+							if (Start) {
+								ThreadSpawned = 1;
+
+								std::string u(res.Host.begin() + Start, res.Host.end());
+
+								for (char& a : u)
+									if (a == ' ')a = '+';
+
+								std::scoped_lock L(MIRROR::MirrorAPILock);
+								MIRROR::MirrorAPIQue.emplace_back("api/search?" + u, s);
+							}
+						}
+						break;
+
+						case WSTI<u64>("/web/osu-getreplay.php") :
+							GetReplay(res.Host, s);
 							break;
 
-							case WSTI<u64>("/web/osu-search-set.php") :
-								if (const DWORD SetID = StringToNum(DWORD, std::string_view(res.Host.data() + Size, res.Host.size() - Size)); SetID) {
-
+							case WSTI<u64>("/d/") :
+								if (const DWORD ID = StringToNum(DWORD, std::string_view(res.Host.data() + Size, res.Host.size() - Size)); ID) {
 									ThreadSpawned = 1;
-
-									std::scoped_lock L(MIRROR::MirrorAPILock);
-									MIRROR::MirrorAPIQue.emplace_back("api/set?b=" + std::to_string(SetID), s);
-
+									std::thread a(Thread_DownloadOSZ, ID, s);
+									a.detach();
 								}
 							break;
 
-							case WSTI<u64>("/web/osu-search.php") : {
-
-								size_t Start = 0;
-
-								for (size_t i = 22; i < res.Host.size() - 2; i++) {
-									if (*(USHORT*)&res.Host[i] == 0x7226) {//&r
-										Start = i + 1;
-										break;
-									}
-								}
-
-								if (Start) {
-									ThreadSpawned = 1;
-
-									std::string u(res.Host.begin() + Start, res.Host.end());
-
-									for (char& a : u)
-										if (a == ' ')a = '+';
-
-									std::scoped_lock L(MIRROR::MirrorAPILock);
-									MIRROR::MirrorAPIQue.emplace_back("api/search?" + u, s);
-								}
+							case WSTI<u64>("/web/maps/") :
+								ThreadSpawned = 1;
+							{
+								std::thread a(Thread_UpdateOSU, std::string(res.Host.begin() + 1, res.Host.end()), s);
+								a.detach();
 							}
 							break;
 
-							case WSTI<u64>("/web/osu-getreplay.php") :
-								GetReplay(res.Host, s);
+							case WSTI<u64>("/web/replays/") :
+								ThreadSpawned = 1;
+							{
+								std::thread a(Thread_WebReplay, MemToNum<uint64_t>(&res.Host[_strlen_("/web/replays/")], res.Host.size() - _strlen_("/web/replays/")), s);
+								a.detach();
+							}
+							break;
+
+							case WSTI<u64>("/web/osu-screenshot.php") :
+								UploadScreenshot(res, s);
 								break;
 
-								case WSTI<u64>("/d/") :
-									if (const DWORD ID = StringToNum(DWORD, std::string_view(res.Host.data() + Size, res.Host.size() - Size)); ID) {
-										ThreadSpawned = 1;
-										std::thread a(Thread_DownloadOSZ, ID, s);
-										a.detach();
-									}
-								break;
-
-								case WSTI<u64>("/web/maps/") :
-									ThreadSpawned = 1;
-								{
-									std::thread a(Thread_UpdateOSU, std::string(res.Host.begin() + 1, res.Host.end()), s);
-									a.detach();
-								}
-								break;
-
-								case WSTI<u64>("/web/replays/") :
-									ThreadSpawned = 1;
-								{
-									std::thread a(Thread_WebReplay, MemToNum<uint64_t>(&res.Host[_strlen_("/web/replays/")], res.Host.size() - _strlen_("/web/replays/")), s);
-									a.detach();
-								}
-								break;
-
-								case WSTI<u64>("/web/osu-screenshot.php") :
-									UploadScreenshot(res, s);
+								case WSTI<u64>("/web/lastfm.php") :
+									LastFM(_GetParams(res.Host), s);
 									break;
+									//case WSTI<u64>("/web/admin.php") :
+									//	web::HandleAdmin(_GetParams(res.Host), s);
+									//	break;
 
-									case WSTI<u64>("/web/lastfm.php") :
-										LastFM(_GetParams(res.Host), s);
-										break;
-										//case WSTI<u64>("/web/admin.php") :
-										//	web::HandleAdmin(_GetParams(res.Host), s);
-										//	break;
-
-									default:
-										SendAria404(s);
-										break;
-			}
+								default:
+									SendAria404(s);
+									break;
 		}
-
-		if (!ThreadSpawned) { s.Dis(); }
-
 	}
 
-	template<typename T>
-	struct _ConQue {
+	if (!ThreadSpawned) { s.Dis(); }
 
-		int Count = 0;
+}
 
-		std::atomic<T> S = T();
-		std::condition_variable cv;
-		std::mutex Lock;
+template<typename T>
+struct _ConQue {
 
-		_inline void notify() {
-			std::lock_guard L(Lock);
-			Count++;
-			cv.notify_one();
+	int Count = 0;
+
+	std::atomic<T> S = T();
+	std::condition_variable cv;
+	std::mutex Lock;
+
+	_inline void notify() {
+		std::lock_guard L(Lock);
+		Count++;
+		cv.notify_one();
+	}
+
+	_inline void wait() {
+		std::unique_lock L(Lock);
+		while (!Count)
+			cv.wait(L);
+
+		Count--;
+	}
+
+};
+
+template<size_t Thread_Count>
+struct _SocketWorker {
+
+	_ConQue<SOCKET> Slots[Thread_Count] = {};
+
+	template<typename F>
+	void work(const char* Socket, F WorkFunction, u16 PORT = 0) {
+
+		for (size_t i = 0; i < Thread_Count; i++) {
+			std::thread t(WorkFunction, i, std::ref(Slots[i]));
+			t.detach();
 		}
-
-		_inline void wait() {
-			std::unique_lock L(Lock);
-			while (!Count)
-				cv.wait(L);
-
-			Count--;
-		}
-
-	};
-
-	template<size_t Thread_Count>
-	struct _SocketWorker {
-
-		_ConQue<SOCKET> Slots[Thread_Count] = {};
-
-		template<typename F>
-		void work(const char* Socket, F WorkFunction, u16 PORT = 0) {
-
-			for (size_t i = 0; i < Thread_Count; i++) {
-				std::thread t(WorkFunction, i, std::ref(Slots[i]));
-				t.detach();
-			}
 
 #ifndef LINUX
 
-			SOCKET listening = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		SOCKET listening = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-			sockaddr_in hint;
-			ZeroMemory(&hint.sin_addr, sizeof(hint.sin_addr));
-			hint.sin_family = AF_INET;
-			hint.sin_port = htons(PORT);
+		sockaddr_in hint;
+		ZeroMemory(&hint.sin_addr, sizeof(hint.sin_addr));
+		hint.sin_family = AF_INET;
+		hint.sin_port = htons(PORT);
 
-			::bind(listening, (sockaddr*)&hint, sizeof(hint));
+		::bind(listening, (sockaddr*)&hint, sizeof(hint));
 
-			listen(listening, SOMAXCONN);// Sets the socket to listen
+		listen(listening, SOMAXCONN);// Sets the socket to listen
 
-			DWORD Time = 5000;
-			DWORD MPL = MAX_PACKET_LENGTH;
+		DWORD Time = 5000;
+		DWORD MPL = MAX_PACKET_LENGTH;
 
-			setsockopt(listening, SOL_SOCKET, SO_RCVTIMEO, (char*)&Time, 4);
-			setsockopt(listening, SOL_SOCKET, SO_SNDTIMEO, (char*)&Time, 4);
-			setsockopt(listening, SOL_SOCKET, SO_RCVBUF, (char*)&MPL, 4);
+		setsockopt(listening, SOL_SOCKET, SO_RCVTIMEO, (char*)&Time, 4);
+		setsockopt(listening, SOL_SOCKET, SO_SNDTIMEO, (char*)&Time, 4);
+		setsockopt(listening, SOL_SOCKET, SO_RCVBUF, (char*)&MPL, 4);
 
 #else
 
-			SOCKET listening = socket(AF_UNIX, SOCK_STREAM, 0);
+		SOCKET listening = socket(AF_UNIX, SOCK_STREAM, 0);
 
-			struct sockaddr_un serveraddr;
-			ZeroMemory(&serveraddr, sizeof(serveraddr));
+		struct sockaddr_un serveraddr;
+		ZeroMemory(&serveraddr, sizeof(serveraddr));
 
-			serveraddr.sun_family = AF_UNIX;
-			strcpy(serveraddr.sun_path, Socket);
+		serveraddr.sun_family = AF_UNIX;
+		strcpy(serveraddr.sun_path, Socket);
 
-			unlink(Socket);
+		unlink(Socket);
 
-			if (bind(listening, (struct sockaddr*) & serveraddr, SUN_LEN(&serveraddr)) < 0) {
-				perror("bind() failed");
-				return;
-			}
-			if (listen(listening, SOMAXCONN) < 0) {
-				perror("listen() failed");
-				return;
-			}
-			chmod(Socket, S_IRWXU | S_IRWXG | S_IRWXO);
-
-#endif
-
-			u32 ID = 0;
-
-			for (;;) {
-
-#ifndef LINUX
-				sockaddr_in client;
-				ZeroMemory(&client, sizeof(client));
-				int clientSize = sizeof(client);
-				SOCKET s = accept(listening, (sockaddr*)&client, &clientSize);
-#else
-				SOCKET s = accept(listening, 0, 0);
-#endif
-
-				if (s == INVALID_SOCKET)
-					continue;
-
-				while (Slots[ID].S)
-					ID = ++ID >= Thread_Count ? 0 : ID;
-
-				Slots[ID].S = s;
-				Slots[ID].notify();
-
-				++COUNT_REQUESTS;
-
-			}
-
+		if (bind(listening, (struct sockaddr*) & serveraddr, SUN_LEN(&serveraddr)) < 0) {
+			perror("bind() failed");
+			return;
 		}
+		if (listen(listening, SOMAXCONN) < 0) {
+			perror("listen() failed");
+			return;
+		}
+		chmod(Socket, S_IRWXU | S_IRWXG | S_IRWXO);
 
-	};
+#endif
 
-	void AriaWork(const DWORD ID, _ConQue<SOCKET> & Slot) {
-
-		SOCKET conSocket = 0;
+		u32 ID = 0;
 
 		for (;;) {
 
-			while (!(conSocket = Slot.S))
-				Slot.wait();
+#ifndef LINUX
+			sockaddr_in client;
+			ZeroMemory(&client, sizeof(client));
+			int clientSize = sizeof(client);
+			SOCKET s = accept(listening, (sockaddr*)&client, &clientSize);
+#else
+			SOCKET s = accept(listening, 0, 0);
+#endif
 
-			Slot.S = 0;
+			if (s == INVALID_SOCKET)
+				continue;
 
-			HandleAria(_Con{ conSocket, ID });
+			while (Slots[ID].S)
+				ID = ++ID >= Thread_Count ? 0 : ID;
+
+			Slots[ID].S = s;
+			Slots[ID].notify();
+
+			++COUNT_REQUESTS;
+
 		}
 
 	}
+
+};
+
+void AriaWork(const DWORD ID, _ConQue<SOCKET>& Slot) {
+
+	SOCKET conSocket = 0;
+
+	for (;;) {
+
+		while (!(conSocket = Slot.S))
+			Slot.wait();
+
+		Slot.S = 0;
+
+		HandleAria(_Con{ conSocket, ID });
+	}
+
+}
 
 #include <fcntl.h>
 
-	bool ARIALOADED = 0;
-	void Aria_Main() {
+bool ARIALOADED = 0;
+void Aria_Main() {
 
-		UpdateCache.reserve(16);//Really should only be a few anyway.
+	UpdateCache.reserve(16);//Really should only be a few anyway.
 
-		for (size_t i = 0; i < ARIA_THREAD_COUNT; i++)
-			AriaSQL[i].Connect();
+	for (size_t i = 0; i < ARIA_THREAD_COUNT; i++)
+		AriaSQL[i].Connect();
 
-		{
-			std::thread a(MIRROR::HandleMirrorAPI);
-			a.detach();
-		}
-
-		ARIALOADED = 1;
-
-		_SocketWorker<ARIA_THREAD_COUNT> Worker;
-
-		Worker.work(ARIA_UNIX_SOCKET, AriaWork, ARIAPORT);
+	{
+		std::thread a(MIRROR::HandleMirrorAPI);
+		a.detach();
 	}
+
+	ARIALOADED = 1;
+
+	_SocketWorker<ARIA_THREAD_COUNT> Worker;
+
+	Worker.work(ARIA_UNIX_SOCKET, AriaWork, ARIAPORT);
+}
 
 #undef ModuleName
