@@ -1247,7 +1247,7 @@ else EXTRACT(bmk);
 					ezpp_set_accuracy(ez, sData.count100, sData.count50);
 					ezpp_set_combo(ez, sData.MaxCombo);
 					ezpp_set_mode(ez, sData.GameMode);
-
+					DownloadMapFromOsu(BD->BeatmapID);
 					if (!OppaiCheckMapDownload(ez, BD->BeatmapID)) {
 						printf("Could not download\n");
 						return TryScoreAgain(s);
@@ -1385,7 +1385,7 @@ void osu_getScores(const _HttpRes& http, _Con s) {
 
 	const DWORD SetID = StringToNum(DWORD, Params.get<WSTI("i")>());
 
-	if (unlikely(BeatmapMD5.size() != 32 || http.GetHeaderValue("Host") != " osu.ppy.sh"))
+	if (unlikely(BeatmapMD5.size() != 32))
 		return SendAria404(s);
 
 	_UserRef u(GetUserFromName(urlDecode(std::string(Params.get<WSTI("us")>()))), 1);
