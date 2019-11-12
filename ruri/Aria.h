@@ -1012,81 +1012,82 @@ Achievement GetAchievementsFromScore(const _Score &s, const float StarDiff) {
 	return Ret;
 }
 
-void ScoreServerHandle(const _HttpRes &res, _Con s){
+void ScoreServerHandle(const _HttpRes& res, _Con s) {
 
 
 	const char* mName = "Aria";
 
 	int FailTime = -1;
 	int Quit = -1;
-
+	prin
 	std::string score,
-				score_bmk,//Beatmap hash - used to detect changing the map as it is loading.
-				score_c1,
-				score_osuver,
-				score_s,//client hash
-				score_i,//Used if osu thinks the person is flashlight cheating.
-				score_iv,ReplayFile;
+		score_bmk,//Beatmap hash - used to detect changing the map as it is loading.
+		score_c1,
+		score_osuver,
+		score_s,//client hash
+		score_i,//Used if osu thinks the person is flashlight cheating.
+		score_iv, ReplayFile;
 
 	_MD5 pass;
 
-	const auto RawScoreData = Explode_View_Multi(res.Body,"-------------------------------28947758029299\r\n",16);
-		bool FirstScoreParam = 1;
-		for (DWORD i = 0; i < RawScoreData.size(); i++){
+	const auto RawScoreData = Explode_View_Multi(res.Body, "-------------------------------28947758029299\r\n", 16);
+	bool FirstScoreParam = 1;
+	printf("%zi", RawScoreData);
+	for (DWORD i = 0; i < RawScoreData.size(); i++) {
 
-			if (!MEM_CMP_START(RawScoreData[i], "Content-Disposition: form-data; name=\""))
-				continue;
+		if (!MEM_CMP_START(RawScoreData[i], "Content-Disposition: form-data; name=\""))
+			continue;
 
-			const char* End = &RawScoreData[i][38];
-			const char* Start = &RawScoreData[i][38];
-			const size_t DataSize = RawScoreData[i].size() - 39;
+		const char* End = &RawScoreData[i][38];
+		const char* Start = &RawScoreData[i][38];
+		const size_t DataSize = RawScoreData[i].size() - 39;
 
-			if (DataSize == size_t(-1) || !DataSize)
-				continue;
+		if (DataSize == size_t(-1) || !DataSize)
+			continue;
 
-			bool QuickExit = 0;
+		bool QuickExit = 0;
 
-			while (1) {
-				End++;
-				if (*End == '"')break;
-				if (size_t(End - Start) >= DataSize) {
-					QuickExit = 1;
-					break;
-				}
-			}if (QuickExit)continue;
-
-			const std::string Name(Start, End);
-
-			Start = End + 5;
-			End = &RawScoreData[i][RawScoreData[i].size() - 2];
-			if (Start >= End)continue;
-
-
-			#define EXTRACT(s) if(Name == #s)score_##s = std::string(Start, End)
-
-			if (Name == "ft")
-				FailTime = MemToNum<int>(Start, DWORD(End - Start));
-			else if (Name == "x")
-				Quit = MemToNum<int>(Start, DWORD(End - Start));
-			else if (Name == "score") {
-				if (FirstScoreParam)
-					score = std::string(Start, End);
-				else {
-					Start += 58;
-					End -= _strlen_("-------------------------------28947758029299--");
-					if (Start >= End)continue;
-					ReplayFile = std::string(Start, End);
-				}
-				FirstScoreParam = 0;
+		while (1) {
+			End++;
+			if (*End == '"')break;
+			if (size_t(End - Start) >= DataSize) {
+				QuickExit = 1;
+				break;
 			}
-			else EXTRACT(iv);
-			else EXTRACT(bmk);
-			else EXTRACT(c1);
-			else if (Name == "pass")
-				pass = _MD5(std::string(Start, End));
-			else EXTRACT(osuver);
-			else EXTRACT(s);
-			else EXTRACT(i);
+		}if (QuickExit)continue;
+
+		const std::string Name(Start, End);
+
+		Start = End + 5;
+		End = &RawScoreData[i][RawScoreData[i].size() - 2];
+		if (Start >= End)continue;
+
+
+#define EXTRACT(s) if(Name == #s)score_##s = std::string(Start, End)
+
+		if (Name == "ft")
+			FailTime = MemToNum<int>(Start, DWORD(End - Start));
+		else if (Name == "x")
+			Quit = MemToNum<int>(Start, DWORD(End - Start));
+		else if (Name == "score") {
+			if (FirstScoreParam)
+				score = std::string(Start, End);
+			else {
+				Start += 58;
+				End -= _strlen_("-------------------------------28947758029299--");
+				if (Start >= End)continue;
+				ReplayFile = std::string(Start, End);
+			}
+			FirstScoreParam = 0;
+		}
+		else EXTRACT(iv);
+else EXTRACT(bmk);
+		else EXTRACT(c1);
+		else if (Name == "pass")
+			pass = _MD5(std::string(Start, End));
+		else EXTRACT(osuver);
+		else EXTRACT(s);
+		else EXTRACT(i);
 #undef EXTRACT
 
 		const bool OldClient = (FailTime == -1 || Quit == -1);
@@ -1099,7 +1100,7 @@ void ScoreServerHandle(const _HttpRes &res, _Con s){
 
 
 		score_iv = base64_decode(score_iv);
-		
+
 		const std::string Key = "osu!-scoreburgr---------" + score_osuver;
 
 		_Score sData;
@@ -1114,19 +1115,19 @@ void ScoreServerHandle(const _HttpRes &res, _Con s){
 				return ScoreFailed(s);
 			}
 
-			sData.Mods = StringToNum(DWORD,ScoreData[score_Mods]);
+			sData.Mods = StringToNum(DWORD, ScoreData[score_Mods]);
 
 			if (sData.Mods & (Mods::Relax2 | Mods::Autoplay | (1 << 29)
-			#ifdef NO_RELAX
+#ifdef NO_RELAX
 				| Mods::Relax
-			#endif
+#endif
 				))
 				return ScoreFailed(s);
 
 			sData.BeatmapHash = REMOVEQUOTES(std::string(IT_COPY(ScoreData[scoreOffset::score_FileCheckSum])));
 
 			sData.UserName = ScoreData[scoreOffset::score_PlayerName];
-			sData.count300 = StringToNum(USHORT,ScoreData[score_Count300]);
+			sData.count300 = StringToNum(USHORT, ScoreData[score_Count300]);
 			sData.count100 = StringToNum(USHORT, ScoreData[score_Count100]);
 			sData.count50 = StringToNum(USHORT, ScoreData[score_Count50]);
 			sData.countGeki = StringToNum(USHORT, ScoreData[score_CountGeki]);
@@ -1136,15 +1137,15 @@ void ScoreServerHandle(const _HttpRes &res, _Con s){
 			sData.MaxCombo = StringToNum(USHORT, ScoreData[score_maxCombo]);
 			sData.FullCombo = (ScoreData[score_Perfect] == "True") ? 1 : 0;
 			sData.GameMode = StringToNum(byte, ScoreData[score_playMode]);if (sData.GameMode > 3)sData.GameMode = 3;
-			
+
 		}//Score Data is ready to read.
 
-		if (sData.UserName.size() && sData.UserName[sData.UserName.size()-1] == ' ')
+		if (sData.UserName.size() && sData.UserName[sData.UserName.size() - 1] == ' ')
 			sData.UserName.pop_back();//Pops off supporter client check.
-		
-		_UserRef u(GetUserFromNameSafe(USERNAMESAFE(sData.UserName)),1);
 
-		if (!u.User || !u.User->choToken){
+		_UserRef u(GetUserFromNameSafe(USERNAMESAFE(sData.UserName)), 1);
+
+		if (!u.User || !u.User->choToken) {
 			//They might still be logging in. Just abort the connection to let their client (hopefully) attempt again.
 			//Hopefully once they have an active ruri connection.
 			printf("%s> is not online?\n", sData.UserName.c_str());
@@ -1152,24 +1153,24 @@ void ScoreServerHandle(const _HttpRes &res, _Con s){
 		}
 
 		const DWORD UserID = u.User->UserID;
-		if (!(u.User->Password == pass)){
+		if (!(u.User->Password == pass)) {
 			printf("%s> password wrong\n", sData.UserName.c_str());
 			return TryScoreAgain(s);
 		}
 
 		const DWORD sOffset =
-		#ifndef NO_RELAX
+#ifndef NO_RELAX
 			sData.Mods & Relax ? sData.GameMode + 4 :
-		#endif
+#endif
 			sData.GameMode;
 
 		{//Update total_score
-		#ifdef NO_RELAX
+#ifdef NO_RELAX
 			const std::string TableName = "users_stats";
-		#else
+#else
 			const std::string TableName = sData.Mods & Relax ? "rx_stats" : "users_stats";
-		#endif
-			const std::string Mode = [](const byte GM){
+#endif
+			const std::string Mode = [](const byte GM) {
 				if (GM == 0)
 					return "std";//imagine being ripple
 				if (GM == 1)
@@ -1185,18 +1186,18 @@ void ScoreServerHandle(const _HttpRes &res, _Con s){
 		}
 
 		if (const byte TrueGameMode =
-		#ifndef NO_RELAX
-			(sData.Mods & Relax) ? sData.GameMode + 4 :
-		#endif			
+#ifndef NO_RELAX
+		(sData.Mods & Relax) ? sData.GameMode + 4 :
+#endif			
 			sData.GameMode;
-			(u.User->privileges & (u32)Privileges::Visible) && !FailTime && !Quit && ReplayFile.size() > 250){
+			(u.User->privileges & (u32)Privileges::Visible) && !FailTime && !Quit && ReplayFile.size() > 250) {
 
 			_BeatmapDataRef MapRef;
 
-			_BeatmapData *BD = GetBeatmapCache(0, 0, sData.BeatmapHash, "", &AriaSQL[s.ID], MapRef);
+			_BeatmapData* BD = GetBeatmapCache(0, 0, sData.BeatmapHash, "", &AriaSQL[s.ID], MapRef);
 
-			if (!BD){
-				printf(KRED"(%s) ScoreSubmit map failure\n" KRESET,sData.BeatmapHash.c_str());
+			if (!BD) {
+				printf(KRED"(%s) ScoreSubmit map failure\n" KRESET, sData.BeatmapHash.c_str());
 				return TryScoreAgain(s);
 			}
 			float PP = 0.f;
@@ -1204,13 +1205,13 @@ void ScoreServerHandle(const _HttpRes &res, _Con s){
 
 			const bool Loved = (BD->RankStatus == LOVED);
 
-			if (BD->RankStatus >= RANKED){
+			if (BD->RankStatus >= RANKED) {
 
 				u.User->Stats[sOffset].PlayCount++;
 				u.User->Stats[sOffset].tScore += sData.Score;
 
-				if (sData.GameMode < 2){
-				
+				if (sData.GameMode < 2) {
+
 					ezpp_t ez = ezpp_new();
 
 					if (!ez) {
@@ -1224,36 +1225,37 @@ void ScoreServerHandle(const _HttpRes &res, _Con s){
 					ezpp_set_combo(ez, sData.MaxCombo);
 					ezpp_set_mode(ez, sData.GameMode);
 					DownloadMapFromOsu(BD->BeatmapID);
-					if (!OppaiCheckMapDownload(ez, BD->BeatmapID)){
+					if (!OppaiCheckMapDownload(ez, BD->BeatmapID)) {
 						printf("Could not download\n");
 						return TryScoreAgain(s);
 					}
-				
+
 					PP = ezpp_pp(ez);
 
-					if (!Loved && PP < 30000.f){
-						if (((sData.Mods & Relax) && PP > 1400.f) || (!(sData.Mods & Relax) && PP > 700.f)){
+					if (!Loved && PP < 30000.f) {
+						if (((sData.Mods & Relax) && PP > 1400.f) || (!(sData.Mods & Relax) && PP > 700.f)) {
 
 							UpdateQue.emplace_back(UserID, (u32)0, _UserUpdate::Restrict, (size_t)new std::string("Restricted for too much pp in a single play: " + std::to_string(PP)));
 
 						}
 					}
 
-					 MapStars = (sData.Mods & (NoFail | Relax | Relax2)) ? 0.f : ezpp_stars(ez);
+					MapStars = (sData.Mods & (NoFail | Relax | Relax2)) ? 0.f : ezpp_stars(ez);
 
-				}else{
+				}
+				else {
 					constexpr auto b = PacketBuilder::CT::String_Packet(Packet::Server::notification, "That gamemode is currently not supported for pp.\nYour score will still be saved for future calculations.");
 					u->addQueArray(b);
 					goto SENDSCORE;
 				}
 			}
-			_ScoreCache sc(sData,u.User->UserID,PP);
-			
+			_ScoreCache sc(sData, u.User->UserID, PP);
+
 			sc.Loved = (BD->RankStatus == LOVED);
 
 			std::string ClientScoreUpdate;
 
-			bool NewBest = BD->AddScore(TrueGameMode, sc, &AriaSQL[s.ID],&ClientScoreUpdate);
+			bool NewBest = BD->AddScore(TrueGameMode, sc, &AriaSQL[s.ID], &ClientScoreUpdate);
 
 			std::string Charts =
 				"beatmapId: " + std::to_string(BD->BeatmapID) +
@@ -1262,70 +1264,69 @@ void ScoreServerHandle(const _HttpRes &res, _Con s){
 				"|beatmapPasscount: 1"
 				"|approvedDate: 0\n";
 
-			if (ClientScoreUpdate.size() != 0){
+			if (ClientScoreUpdate.size() != 0) {
 				Charts += "chartId: beatmap"
 					"|chartUrl: https://osu.ppy.sh/b/" + std::to_string(BD->BeatmapID) +
 					"|chartName: Beatmap Ranking" + ClientScoreUpdate;
-				
+
 				//TODO: might want to add overall stats
 				std::string achievements;
-				
+
 				Achievement New = GetAchievementsFromScore(sData, MapStars);
 
 				CalculateAchievement(New, u->Ach, sData.GameMode, achievements);//TODO Add ach to DB.
 				u->Ach = New;
 
-				if (achievements.size()){
+				if (achievements.size()) {
 					SQLExecQue.AddQue("UPDATE users SET achievements_0=" +
 						std::to_string(u64(New.General[0]) + (u64(New.General[1]) << 32)) + ",achievements_1=" + std::to_string(u64(New.General[2]) + (u64(New.General[3]) << 32)) +
 						" WHERE id=" + std::to_string(u->UserID) + " LIMIT 1;");
 
 					Charts += "|achievements-new: " + achievements + "\n";
-				}else Charts += "\n";
+				}
+				else Charts += "\n";
 			}
-			
+
 			s.SendData(ConstructResponse(200, Empty_Headers, Charts));
 			s.Dis();
 
 			if (const DWORD Off = u->GetStatsOffset(); !Loved && NewBest && UpdateUserStatsFromDB(&AriaSQL[s.ID], UserID, TrueGameMode, u.User->Stats[TrueGameMode]))
-				PacketBuilder::Build<Packet::Server::userStats, 'm','i','b','a','5','i','b','i','l','i','i','l','i','w'>(u->QueBytes,&u->qLock,u->UserID,u->actionID,u->ActionText,u->ActionMD5,u->actionMods,u->GameMode,u->BeatmapID,
-					u->Stats[Off].rScore,*(int*)&u->Stats[Off].Acc, u->Stats[Off].pp > USHORT(-1) ? u->Stats[Off].pp : u->Stats[Off].PlayCount, u->Stats[Off].tScore, u->Stats[Off].getRank(Off, u->UserID), USHORT(u->Stats[Off].pp));
+				PacketBuilder::Build<Packet::Server::userStats, 'm', 'i', 'b', 'a', '5', 'i', 'b', 'i', 'l', 'i', 'i', 'l', 'i', 'w'>(u->QueBytes, &u->qLock, u->UserID, u->actionID, u->ActionText, u->ActionMD5, u->actionMods, u->GameMode, u->BeatmapID,
+					u->Stats[Off].rScore, *(int*)&u->Stats[Off].Acc, u->Stats[Off].pp > USHORT(-1) ? u->Stats[Off].pp : u->Stats[Off].PlayCount, u->Stats[Off].tScore, u->Stats[Off].getRank(Off, u->UserID), USHORT(u->Stats[Off].pp));
 
 			if (NewBest && sc.ScoreID && ReplayFile.size())
-				WriteAllBytes(ReplayPath + std::to_string(sc.ScoreID) + ".osr",&ReplayFile[0], ReplayFile.size());
+				WriteAllBytes(ReplayPath + std::to_string(sc.ScoreID) + ".osr", &ReplayFile[0], ReplayFile.size());
 
 			return;
 		}
-		SENDSCORE:
+	SENDSCORE:
 		s.SendData(ConstructResponse(200, Empty_Headers, STACK("error: no")));
 		s.Dis();
 
 		AriaSQL[s.ID].ExecuteUPDATE(SQL_INSERT(
 			Score_Table_Name[RELAX_MODE && (sData.Mods & Relax)],
-		{
-		_SQLKey("beatmap_md5",std::string(sData.BeatmapHash)),
-		_SQLKey("userid",UserID),
-		_SQLKey("score",sData.Score),
-		_SQLKey("max_combo",sData.MaxCombo),
-		_SQLKey("full_combo",sData.FullCombo),
-		_SQLKey("mods",sData.Mods),
-		_SQLKey("300_count",sData.count300),
-		_SQLKey("100_count",sData.count100),
-		_SQLKey("50_count",sData.count50),
-		_SQLKey("katus_count",sData.countKatu),
-		_SQLKey("gekis_count",sData.countGeki),
-		_SQLKey("misses_count",sData.countMiss),
-		_SQLKey("time",time(0)),
-		_SQLKey("play_mode",sData.GameMode),
-		_SQLKey("completed",0),
-		_SQLKey("accuracy",std::to_string(sData.GetAcc())),
-		_SQLKey("pp",0)
-		}));
+			{
+			_SQLKey("beatmap_md5",std::string(sData.BeatmapHash)),
+			_SQLKey("userid",UserID),
+			_SQLKey("score",sData.Score),
+			_SQLKey("max_combo",sData.MaxCombo),
+			_SQLKey("full_combo",sData.FullCombo),
+			_SQLKey("mods",sData.Mods),
+			_SQLKey("300_count",sData.count300),
+			_SQLKey("100_count",sData.count100),
+			_SQLKey("50_count",sData.count50),
+			_SQLKey("katus_count",sData.countKatu),
+			_SQLKey("gekis_count",sData.countGeki),
+			_SQLKey("misses_count",sData.countMiss),
+			_SQLKey("time",time(0)),
+			_SQLKey("play_mode",sData.GameMode),
+			_SQLKey("completed",0),
+			_SQLKey("accuracy",std::to_string(sData.GetAcc())),
+			_SQLKey("pp",0)
+			}));
 
 		return;
 	}
-
-}
 
 enum RankingType
 {
