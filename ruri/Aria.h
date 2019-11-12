@@ -1030,11 +1030,6 @@ void ScoreServerHandle(const _HttpRes &res, _Con s){
 	_MD5 pass;
 
 	const auto RawScoreData = Explode_View_Multi(res.Body,"-------------------------------28947758029299\r\n",16);
-
-	if (RawScoreData.size() < -1){
-
-		printf("RawScoreData was under 0(%zi)\n",RawScoreData.size());
-	}else {
 		bool FirstScoreParam = 1;
 		for (DWORD i = 0; i < RawScoreData.size(); i++){
 
@@ -1092,7 +1087,6 @@ void ScoreServerHandle(const _HttpRes &res, _Con s){
 			else EXTRACT(s);
 			else EXTRACT(i);
 #undef EXTRACT
-		}
 
 		if (!score_iv.size() || !score_s.size() || !score_osuver.size() || !score.size()){//something very important is missing.
 				LogError("Failed score.","Aria");
