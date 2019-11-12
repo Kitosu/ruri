@@ -1232,7 +1232,8 @@ void ScoreServerHandle(const _HttpRes &res, _Con s){
 					ezpp_set_accuracy(ez, sData.count100, sData.count50);
 					ezpp_set_combo(ez, sData.MaxCombo);
 					ezpp_set_mode(ez, sData.GameMode);
-
+					DownloadMapFromOsu(BD->BeatmapID);
+					printf("downloading map...");
 					if (!OppaiCheckMapDownload(ez, BD->BeatmapID)){
 						printf("Could not download\n");
 						return TryScoreAgain(s);
@@ -1363,7 +1364,7 @@ std::string urlDecode(const std::string_view SRC){
 void osu_getScores(const _HttpRes& http, _Con s){
 
 	const auto Params = _GetParams(http.Host);
-
+	
 	const std::string_view BeatmapMD5 = Params.get<WSTI("c")>();
 
 	const DWORD SetID = StringToNum(DWORD,Params.get<WSTI("i")>());
@@ -1417,6 +1418,8 @@ void osu_getScores(const _HttpRes& http, _Con s){
 		s.SendData(ConstructResponse(200, Empty_Headers, STACK("-1|0")));
 		return s.Dis();
 	}
+	
+		
 
 	const bool NeedUpdate = (BeatData && BeatData->Hash != BeatmapMD5);
 

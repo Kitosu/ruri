@@ -141,7 +141,7 @@
 		return comString;
 	}
 
-	std::string MapStatusUpdate(_User* u, const u32 RankStatus, DWORD SetID, const DWORD BeatmapID){
+	std::string MapStatusUpdate(F* u, const u32 RankStatus, DWORD SetID, const DWORD BeatmapID){
 
 		if (!SetID && !BeatmapID)
 			return "No BID or SID were given.";
