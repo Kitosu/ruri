@@ -4220,17 +4220,19 @@ void HandleBanchoPacket(_Con s, const _HttpRes &&RES,const uint64_t choToken) {
 
 
 			if (~Priv & (u32)Privileges::pendingVerify) {
-				//SQLExecQue.AddQue('UPDATE users set privileges' + )
-			}
-				//TODO: verify
+
+				SQLExecQue.AddQue("UPDATE USERS SET privileges=" + std::to_string((u32)Privileges::Verified) + " WHERE id=" + std::to_string(u->UserID));
+				constexpr auto b = PacketBuilder::CT::String_Packet(Packet::Server::notification, "Your account has been verifed.");
+				u->addQueArray<0>(b);
+			}	
 			
-			/*u->qLock.lock();
+			u->qLock.lock();
 
 			if (~Priv & (u32)Privileges::Visible){
 				constexpr auto b = PacketBuilder::CT::String_Packet(Packet::Server::notification, "Your account is currently restricted.");
 				u->addQueArray<0>(b);
 			}
-			*/
+			
 			if (Outdated && Priv > (u32)Privileges::SuperAdmin)
 				PacketBuilder::Build<Packet::Server::sendMessage, '-', '-', 's', 'i'>(u->QueBytes, STACK(M_BOT_NAME),
 					STACK("This instance of ruri is out of date. (Consider updating.)[https://github.com/rumoi/ruri]"), &u->Username, USERID_START - 1);
