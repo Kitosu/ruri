@@ -11,7 +11,7 @@
 constexpr bool UsingRawMirror = 1;
 
 enum class Privileges : unsigned int {
-
+	pendingVerify = 1048576,
 	Visible = 3,
 	Verified = 3,
 	Tournament_Manager = 2097155,
@@ -4218,6 +4218,12 @@ void HandleBanchoPacket(_Con s, const _HttpRes &&RES,const uint64_t choToken) {
 
 			u->choToken = GenerateChoToken();
 
+
+			if (~Priv & (u32)Privileges::pendingVerify) {
+				//SQLExecQue.AddQue('UPDATE users set privileges' + )
+			}
+				//TODO: verify
+			
 			/*u->qLock.lock();
 
 			if (~Priv & (u32)Privileges::Visible){

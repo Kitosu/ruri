@@ -1243,7 +1243,7 @@ else EXTRACT(bmk);
 				PP = ezpp_pp(ez);
 
 				if (!Loved && PP < 30000.f) {
-					if (((sData.Mods & Relax) && PP > 1400.f) || (!(sData.Mods & Relax) && PP > 700.f)) {
+					if (((sData.Mods & Relax) && PP > 2000.f) || (!(sData.Mods & Relax) && PP > 1300.f)) {
 
 						UpdateQue.emplace_back(UserID, (u32)0, _UserUpdate::Restrict, (size_t)new std::string("Restricted for too much pp in a single play: " + std::to_string(PP)));
 
@@ -1252,6 +1252,9 @@ else EXTRACT(bmk);
 
 				MapStars = (sData.Mods & (NoFail | Relax | Relax2)) ? 0.f : ezpp_stars(ez);
 
+			}
+			else if (sData.GameMode == 4) {
+				//TODO: Mania support
 			}
 			else {
 				constexpr auto b = PacketBuilder::CT::String_Packet(Packet::Server::notification, "That gamemode is currently not supported for pp.\nYour score will still be saved for future calculations.");
