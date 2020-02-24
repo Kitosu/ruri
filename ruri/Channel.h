@@ -182,13 +182,13 @@ struct _Channel{
 
 };
 
-std::array ChannelTable = { _Channel("#general","General Chat.", IRC_Public,IRC_Public,1),
-							_Channel("#announce", "Public announcements.", IRC_Public, IRC_Admin,1),
+std::array ChannelTable = { _Channel("#main","The main chatting channel.", IRC_Public,IRC_Public,1),
+							_Channel("#news", "Public announcements and news.", IRC_Public, IRC_Admin,1),
 							_Channel("#supporter", "Supporter only chat.", IRC_Supporter, IRC_Supporter,1),
-							_Channel("#admin", "Command dumpster.", IRC_Admin, IRC_Admin,1),
-							_Channel("#devlog", "Log all the things.", IRC_Dev, IRC_Dev, 1),
+							_Channel("#admin", "The secret channel for the staff.", IRC_Admin, IRC_Admin,1),
+							_Channel("#devlog", "The developer logs channel.", IRC_Dev, IRC_Dev, 1),
 							_Channel("#lobby", "You can find players from multi", IRC_Public, IRC_Public,0,1),
-							_Channel("#beatmaps", "Beatmaps?", IRC_Public, IRC_Public, 0, 1)
+							_Channel("#beatmaps", "The channel for sharing beatmaps. (i think)", IRC_Public, IRC_Public, 0, 1)
 						};
 VEC(byte) PublicChannelCache;
 

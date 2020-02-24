@@ -2,8 +2,8 @@
 #define M_BOT_NAME "Lori Minase"
 #define BOT_LOCATION 0*/
 #define USERID_START 1000
-#define M_BOT_NAME "Lori Minase"
-#define BOT_LOCATION 111
+#define M_BOT_NAME "RealistikBot"
+#define BOT_LOCATION 999
 
 #define BANCHO_THREAD_COUNT 4
 #define ARIA_THREAD_COUNT 4
@@ -4219,7 +4219,7 @@ void HandleBanchoPacket(_Con s, const _HttpRes &&RES,const uint64_t choToken) {
 			u->choToken = GenerateChoToken();
 
 
-			if (~Priv & (u32)Privileges::pendingVerify) {
+			if (Priv & (u32)Privileges::pendingVerify) {
 
 				SQLExecQue.AddQue("UPDATE USERS SET privileges=" + std::to_string((u32)Privileges::Verified) + " WHERE id=" + std::to_string(u->UserID));
 				constexpr auto b = PacketBuilder::CT::String_Packet(Packet::Server::notification, "Your account has been verifed.");
