@@ -6,8 +6,11 @@ Ruri is a good alternative to pep.py
 # How to run it?
 Its simple just run
 ```git clone https://github.com/Kitosu/ruri```
+
 ```cd ./ruri```
+
 ```chmod +x build.sh```
+
 ```./build```
 
 ...wait till its finished building ruri...
