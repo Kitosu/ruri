@@ -24,7 +24,8 @@ and start ruri with
 
 now you only have to add this to your nginx configuration file 
 
-```Ruri
+```
+#Ruri
 server {
     listen 127.0.0.1:5001;
     location / {
@@ -38,3 +39,4 @@ server {
         proxy_pass http://unix:/tmp/aria.sock:/;
     }
 }
+```
