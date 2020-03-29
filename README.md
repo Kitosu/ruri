@@ -1,13 +1,36 @@
 # Ruri
 Fixes by Kotypey
 
-The goal of this is to experiment with the possibillity of ruri being a possibillity for us
-
+Ruri is a good alternative to pep.py
 
 # How to run it?
 Its simple just run
-```sh
-$ chmod +x build.sh
-$ ./build.sh
-$ ...
-$ ./ruri
+```git clone https://github.com/Kitosu/ruri```
+```cd ./ruri```
+```chmod +x build.sh```
+```./build```
+
+...wait till its finished building ruri...
+
+configure ruri by using
+```nano ./ruri/config.json```
+
+and start ruri
+```cd ./ruri && ./ruri```
+
+now you only have to add this to your nginx configuration file 
+
+```Ruri
+server {
+    listen 127.0.0.1:5001;
+    location / {
+        proxy_pass http://unix:/tmp/ruri.sock:/;
+    }
+}
+
+server {
+    listen 127.0.0.1:5002;
+    location / {
+        proxy_pass http://unix:/tmp/aria.sock:/;
+    }
+}```
