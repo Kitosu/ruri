@@ -1,7 +1,7 @@
 # Ruri
 Fixes by Kotypey
 
-Ruri is a good alternative to pep.py
+Ruri is a good alternative to pep.py and will hopefully be the replacement for pep.py on kitosu in the future
 
 # How to run it?
 Its simple just run
@@ -40,3 +40,6 @@ server {
     }
 }
 ```
+
+Dont forget to make a tmux session for ruri ^_^
+Happy pp farming
