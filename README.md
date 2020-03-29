@@ -42,4 +42,5 @@ server {
 ```
 
 Dont forget to make a tmux session for ruri ^_^
-Happy pp farming
+
+_Happy pp farming_
