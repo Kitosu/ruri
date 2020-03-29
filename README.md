@@ -19,7 +19,7 @@ Its simple just run
 configure ruri by using
 ```nano ./ruri/config.json```
 
-and start ruri
+and start ruri with
 ```cd ./ruri && ./ruri```
 
 now you only have to add this to your nginx configuration file 
