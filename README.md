@@ -37,4 +37,4 @@ server {
     location / {
         proxy_pass http://unix:/tmp/aria.sock:/;
     }
-}```
+}
