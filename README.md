@@ -5,6 +5,7 @@ Ruri is a good alternative to pep.py
 
 # How to run it?
 Its simple just run
+
 ```git clone https://github.com/Kitosu/ruri```
 
 ```cd ./ruri```
@@ -13,7 +14,7 @@ Its simple just run
 
 ```./build```
 
-...wait till its finished building ruri...
+...now wait till its finished building ruri...
 
 configure ruri by using
 ```nano ./ruri/config.json```
